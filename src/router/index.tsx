@@ -5,7 +5,7 @@ import AgendaPage from '@/pages/Agenda';
 import ServicosPage from '@/pages/Servicos';
 import ClientesPage from '@/pages/Clientes';
 import ModuleProtectedRoute from './ModuleProtectedRoute';
-import { MODULO_RAIZ } from '@/constants/moduleCodes';
+import { MODULOS_RAIZ } from '@/constants/moduleCodes';
 
 const router = createBrowserRouter(
     [
@@ -14,7 +14,7 @@ const router = createBrowserRouter(
     {
         path: '/inicio',
         element: (
-            <ModuleProtectedRoute moduloCodigo={MODULO_RAIZ}>
+            <ModuleProtectedRoute moduloCodigo={[...MODULOS_RAIZ]}>
                 <InicioPage />
             </ModuleProtectedRoute>
         ),

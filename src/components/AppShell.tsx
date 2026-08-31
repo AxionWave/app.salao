@@ -15,7 +15,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <p className="mt-0.5 text-lg font-semibold text-slate-900">{APP_CONFIG.nome}</p>
                 </div>
                 <nav className="flex-1 space-y-0.5 p-3">
-                    {MODULOS.filter((m) => authService.hasModulo(m.codigo)).map((m) => (
+                    {MODULOS.filter((m) => {
+                        if (authService.hasModulo(m.codigo)) return true;
+                        return 'aliases' in m && Array.isArray(m.aliases)
+                            ? m.aliases.some((a) => authService.hasModulo(a))
+                            : false;
+                    }).map((m) => (
                         <NavLink
                             key={m.codigo}
                             to={m.path}

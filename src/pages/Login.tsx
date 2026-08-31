@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { authService } from '@core/services';
 import { APP_CONFIG } from '@core/config';
-import { MODULO_RAIZ } from '@/constants/moduleCodes';
+import { MODULOS_RAIZ, temModuloRaiz } from '@/constants/moduleCodes';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -13,7 +13,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (authService.isAuthenticated() && authService.hasModulo(MODULO_RAIZ)) {
+        if (authService.isAuthenticated() && temModuloRaiz((c) => authService.hasModulo(c))) {
             navigate('/inicio', { replace: true });
         }
     }, [navigate]);
@@ -29,8 +29,8 @@ export default function LoginPage() {
                 authService.logout();
                 return;
             }
-            if (!authService.hasModulo(MODULO_RAIZ)) {
-                setError(`Login ok, mas o JWT não tem ${MODULO_RAIZ}. Rode o seed e faça login novamente.`);
+            if (!temModuloRaiz((c) => authService.hasModulo(c))) {
+                setError(`Login ok, mas o JWT não tem ${MODULOS_RAIZ.join(' ou ')}. Rode o seed e faça login novamente.`);
                 return;
             }
             navigate('/inicio', { replace: true });

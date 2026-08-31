@@ -9,7 +9,7 @@ Login e JWT são os **mesmos** do Enterprise (Gateway → oAuth). Não há login
 | Peça | Valor |
 |------|--------|
 | Sistema | `LYR` (Lyra) |
-| Módulo raiz | `LYR0000000` |
+| Módulo de segurança | `LYRA000000` (legado `LYR0000000`) |
 | Gateway | `VITE_GATEWAY_URL` (local: `http://localhost:8080`) |
 | API de negócio | `/api/salao/**` |
 | Porta local | `3002` |
@@ -33,7 +33,8 @@ Secrets: os mesmos do Gateway (`VPS_*`) + `FRONTEND_SECRET_TOKEN`.
 
 ## Módulos
 
-- `LYR0000000` Início → `/inicio`
+- `LYRA000000` Segurança / Início → `/inicio`
+- `LYR0000000` Legado (ainda aceito)
 - `LYR0000001` Agenda → `/agenda`
 - `LYR0000002` Serviços → `/servicos`
 - `LYR0000003` Clientes → `/clientes`
