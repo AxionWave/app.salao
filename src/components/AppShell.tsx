@@ -1,18 +1,33 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '@core/services';
-import { APP_CONFIG } from '@core/config';
+import { APP_CONFIG, urlInicioAsc } from '@core/config';
+import { buildSsoLaunchUrl } from '@core/auth/sso';
 import { MODULOS } from '@/constants/moduleCodes';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
     const navigate = useNavigate();
     const user = authService.getStoredUserInfo();
+    const nomeEmpresa = user?.empresaNome || APP_CONFIG.empresa;
+
+    const irParaAsc = () => {
+        window.location.assign(buildSsoLaunchUrl(urlInicioAsc()));
+    };
 
     return (
         <div className="flex min-h-screen bg-slate-50">
             <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">
                 <div className="border-b border-slate-200 px-5 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{APP_CONFIG.empresa}</p>
-                    <p className="mt-0.5 text-lg font-semibold text-slate-900">{APP_CONFIG.nome}</p>
+                    <button
+                        type="button"
+                        onClick={irParaAsc}
+                        title="Voltar ao início do ASC"
+                        className="block w-full min-w-0 rounded-lg text-left outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-accent/40"
+                    >
+                        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 underline-offset-2 hover:underline">
+                            {nomeEmpresa}
+                        </p>
+                        <p className="mt-0.5 text-lg font-semibold text-slate-900">{APP_CONFIG.nome}</p>
+                    </button>
                 </div>
                 <nav className="flex-1 space-y-0.5 p-3">
                     {MODULOS.filter((m) => {

@@ -15,6 +15,12 @@ export default function LoginPage() {
     useEffect(() => {
         if (authService.isAuthenticated() && temModuloRaiz((c) => authService.hasModulo(c))) {
             navigate('/inicio', { replace: true });
+            return;
+        }
+        if (authService.isAuthenticated()) {
+            setError(
+                `Sessão Enterprise recebida, mas o JWT não tem ${MODULOS_RAIZ.join(' ou ')}. Use o login abaixo ou peça acesso no ASC.`
+            );
         }
     }, [navigate]);
 

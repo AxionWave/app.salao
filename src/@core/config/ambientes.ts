@@ -55,3 +55,17 @@ export function resolveGatewayUrl(productAmbiente?: unknown): { url: string; amb
 
     return { url, ambiente };
 }
+
+/** Início do ASC (hub). VITE_ASC_AMBIENTE, senão localhost → :3000, senão /app/ na VPS. */
+export function urlInicioAsc(): string {
+    const explicit = parseAmbiente(import.meta.env.VITE_ASC_AMBIENTE);
+    const fromHost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'local'
+            : 'homolog';
+    const ambiente: Ambiente = explicit || fromHost;
+    return ambiente === 'local'
+        ? 'http://localhost:3000/inicio'
+        : 'https://enterprise.lumenemotion.com.br/app/inicio';
+}

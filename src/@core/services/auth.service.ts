@@ -19,6 +19,7 @@ export interface StoredUserInfo {
     username: string;
     email: string;
     empresaId: string;
+    empresaNome?: string;
     roles: string[];
     modulos: string[];
 }
@@ -57,6 +58,7 @@ export const authService = {
                 username: String(decoded.username ?? ''),
                 email: String(decoded.email ?? ''),
                 empresaId: String(decoded.empresaId ?? ''),
+                empresaNome: decoded.empresaNome as string | undefined,
                 roles: Array.isArray(decoded.roles) ? (decoded.roles as string[]) : [],
                 modulos: Array.isArray(decoded.modulos) ? (decoded.modulos as string[]) : [],
             };
@@ -105,6 +107,39 @@ export const authService = {
         if (this.isSuperAdmin()) return true;
         const want = codigo.trim().toUpperCase();
         return this.getModulos().some((c) => c.trim().toUpperCase() === want);
+    },
+
+    applySession(data: {
+        access_token: string;
+        refresh_token?: string;
+        token_type?: string;
+        expires_in?: string;
+        must_change_password?: string;
+    }): void {
+        localStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, data.access_token);
+        if (data.refresh_token) {
+            localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, data.refresh_token);
+        }
+        localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN_TYPE, data.token_type || 'Bearer');
+        if (data.expires_in) {
+            localStorage.setItem(AUTH_STORAGE_KEYS.EXPIRES_IN, data.expires_in);
+        }
+        if (data.must_change_password !== undefined && data.must_change_password !== '') {
+            localStorage.setItem(AUTH_STORAGE_KEYS.MUST_CHANGE_PASSWORD, data.must_change_password);
+        }
+        const decoded = parseJwt(data.access_token);
+        if (decoded) {
+            const userInfo: StoredUserInfo = {
+                userId: String(decoded.userId ?? ''),
+                username: String(decoded.username ?? ''),
+                email: String(decoded.email ?? ''),
+                empresaId: String(decoded.empresaId ?? ''),
+                empresaNome: decoded.empresaNome as string | undefined,
+                roles: Array.isArray(decoded.roles) ? (decoded.roles as string[]) : [],
+                modulos: Array.isArray(decoded.modulos) ? (decoded.modulos as string[]) : [],
+            };
+            localStorage.setItem(AUTH_STORAGE_KEYS.USER_INFO, JSON.stringify(userInfo));
+        }
     },
 
     needsPasswordChange(): boolean {
