@@ -3,25 +3,244 @@
 @tailwind utilities;
 
 @layer base {
+    /*
+     * Lyra — Golden Hour
+     * Dark (canônico, .dark): carvão + cobre/ember — paleta do Lovable.
+     * Light (:root): mesmo cobre sobre papel quente.
+     */
     :root {
-        --accent: #7c3aed;
-        --accent-hover: #6d28d9;
-        --accent-muted: #ede9fe;
-        --bg: #f8fafc;
-        --surface: #ffffff;
-        --border: #e2e8f0;
-        --text: #0f172a;
-        --muted: #64748b;
-        --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+        --radius: 0.75rem;
+
+        --background: oklch(0.97 0.012 80);
+        --foreground: oklch(0.22 0.02 265);
+        --panel: oklch(0.99 0.006 80);
+        --panel2: oklch(0.945 0.014 80);
+        --line: oklch(0.88 0.016 80);
+        --ink: oklch(0.22 0.02 265);
+        --faint: oklch(0.55 0.02 255);
+        --copper: oklch(0.62 0.13 55);
+        --ember: oklch(0.7 0.125 58);
+        --warn: oklch(0.72 0.13 85);
+        --ok: oklch(0.55 0.1 150);
+
+        --card: var(--panel);
+        --card-foreground: var(--ink);
+        --popover: var(--panel);
+        --popover-foreground: var(--ink);
+        --primary: var(--copper);
+        --primary-foreground: oklch(0.2 0.03 60);
+        --secondary: var(--panel2);
+        --secondary-foreground: var(--ink);
+        --muted: var(--panel2);
+        --muted-foreground: oklch(0.45 0.02 255);
+        --accent: var(--panel2);
+        --accent-foreground: var(--ink);
+        --destructive: oklch(0.55 0.19 25);
+        --destructive-foreground: oklch(0.97 0.01 60);
+        --border: var(--line);
+        --input: var(--line);
+        --ring: var(--copper);
+
+        --gradient-copper: linear-gradient(140deg, var(--ember), var(--copper));
+        --gradient-panel: linear-gradient(180deg, var(--panel2) 0%, var(--panel) 100%);
+        --gradient-panel-hover: linear-gradient(
+            180deg,
+            color-mix(in oklab, var(--panel2) 88%, white) 0%,
+            color-mix(in oklab, var(--panel) 92%, white) 100%
+        );
+        --ease-lyra: cubic-bezier(0.32, 0.72, 0, 1);
+
+        --lyra-accent: var(--copper);
+        --lyra-accent-hover: var(--ember);
+        --lyra-accent-muted: color-mix(in oklab, var(--copper) 16%, transparent);
+        --lyra-accent-foreground: var(--primary-foreground);
+        --lyra-bg: var(--background);
+        --lyra-surface: var(--card);
+        --lyra-sidebar: oklch(0.18 0.02 265);
+        --lyra-sidebar-fg: oklch(0.95 0.002 210);
+        --lyra-sidebar-muted: oklch(0.72 0.04 60);
+        --lyra-sidebar-border: oklch(0.28 0.02 265);
+        --lyra-text: var(--ink);
+        --lyra-muted: var(--muted-foreground);
+        --lyra-faint: var(--faint);
+        --lyra-border: var(--line);
+        --lyra-ring: color-mix(in oklab, var(--copper) 40%, transparent);
+        --lyra-danger: var(--destructive);
+        --lyra-danger-bg: color-mix(in oklab, var(--destructive) 14%, transparent);
+        --lyra-success: var(--ok);
+        --lyra-radius: var(--radius);
+        --lyra-header-height: 4.5rem;
+        --lyra-shadow-sm: 0 1px 2px oklch(0.22 0.02 265 / 0.06);
+        --lyra-shadow-md: 0 8px 24px oklch(0.22 0.02 265 / 0.08);
+
+        --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+        --font-display: "Archivo", "Inter", sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+        --accent: var(--lyra-accent);
+        --accent-hover: var(--lyra-accent-hover);
+        --accent-muted: var(--lyra-accent-muted);
+        --bg: var(--lyra-bg);
+        --surface: var(--lyra-surface);
+        --text: var(--lyra-text);
+        --muted: var(--lyra-muted);
     }
-    html, body, #root {
+
+    .dark {
+        --background: oklch(0.155 0.008 265);
+        --foreground: oklch(0.95 0.002 210);
+        --panel: oklch(0.208 0.008 265);
+        --panel2: oklch(0.245 0.009 265);
+        --line: oklch(0.31 0.01 265);
+        --ink: oklch(0.95 0.002 210);
+        --faint: oklch(0.48 0.015 255);
+        --copper: oklch(0.7 0.115 60);
+        --ember: oklch(0.78 0.12 60);
+        --warn: oklch(0.79 0.13 85);
+        --ok: oklch(0.76 0.09 150);
+
+        --card: oklch(0.245 0.009 265);
+        --card-foreground: var(--ink);
+        --popover: oklch(0.208 0.008 265);
+        --popover-foreground: var(--ink);
+        --primary: var(--copper);
+        --primary-foreground: oklch(0.2 0.03 60);
+        --secondary: oklch(0.245 0.009 265);
+        --secondary-foreground: var(--ink);
+        --muted: oklch(0.245 0.009 265);
+        --muted-foreground: oklch(0.65 0.017 250);
+        --accent: oklch(0.28 0.012 265);
+        --accent-foreground: var(--ink);
+        --destructive: oklch(0.62 0.19 25);
+        --destructive-foreground: oklch(0.97 0.01 60);
+        --border: var(--line);
+        --input: var(--line);
+        --ring: var(--copper);
+
+        --lyra-sidebar: var(--panel);
+        --lyra-sidebar-fg: var(--ink);
+        --lyra-sidebar-muted: var(--muted-foreground);
+        --lyra-sidebar-border: var(--line);
+        --lyra-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+        --lyra-shadow-md: 0 8px 24px oklch(0 0 0 / 0.4);
+        --lyra-danger-bg: color-mix(in oklab, var(--destructive) 22%, transparent);
+    }
+
+    html,
+    body,
+    #root {
         height: 100%;
     }
+
+    * {
+        border-color: var(--border);
+    }
+
     body {
         margin: 0;
         font-family: var(--font-sans);
-        background: var(--bg);
-        color: var(--text);
+        background-color: var(--background);
+        color: var(--foreground);
         -webkit-font-smoothing: antialiased;
+    }
+}
+
+@keyframes lyra-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes lyra-rise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@layer components {
+    .lyra-input {
+        @apply mt-1 w-full text-sm transition-colors;
+        border-radius: var(--radius);
+        border: 1px solid var(--input);
+        background: var(--card);
+        color: var(--ink);
+        padding: 0.625rem 0.75rem;
+    }
+
+    .lyra-input:focus {
+        outline: none;
+        border-color: var(--ring);
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--copper) 35%, transparent);
+    }
+
+    .lyra-btn-primary,
+    .lyra-cta {
+        @apply px-4 py-2.5 text-sm font-semibold disabled:opacity-60;
+        border-radius: var(--radius);
+        background: var(--gradient-copper);
+        color: var(--primary-foreground);
+        transition: transform 0.2s var(--ease-lyra);
+    }
+
+    .lyra-btn-primary:hover:not(:disabled),
+    .lyra-cta:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .lyra-card {
+        background: var(--gradient-panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        transition:
+            border-color 0.3s var(--ease-lyra),
+            background 0.3s var(--ease-lyra);
+    }
+
+    .lyra-card:hover {
+        border-color: color-mix(in oklab, var(--copper) 40%, transparent);
+        background: var(--gradient-panel-hover);
+    }
+
+    .lyra-row:hover {
+        background: color-mix(in oklab, white 4%, transparent);
+    }
+
+    .lyra-glow {
+        position: relative;
+        isolation: isolate;
+    }
+
+    .lyra-glow::before {
+        content: "";
+        position: absolute;
+        inset: 0 -20% -40% -20%;
+        z-index: 0;
+        background: radial-gradient(
+            60% 120% at 80% 0%,
+            color-mix(in oklab, var(--copper) 16%, transparent),
+            transparent 70%
+        );
+        pointer-events: none;
+    }
+
+    .lyra-glow > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .lyra-rise {
+        animation: lyra-rise 0.4s var(--ease-lyra) both;
+    }
+
+    .lyra-fade {
+        animation: lyra-fade 0.25s var(--ease-lyra) both;
     }
 }

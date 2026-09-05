@@ -1,4 +1,4 @@
-import { resolveGatewayUrl } from './ambientes';
+import { resolveGatewayUrl, resolveProductApiUrl } from './ambientes';
 
 export const APP_CONFIG = {
     nome: import.meta.env.VITE_APP_NOME_APP || 'Lyra',
@@ -9,7 +9,9 @@ export const APP_CONFIG = {
 } as const;
 
 export const API_CONFIG = {
-    gateway: resolveGatewayUrl(import.meta.env.VITE_LYRA_AMBIENTE).url,
+    gateway: resolveGatewayUrl().url,
+    /** Lyra local (:8092) ou Gateway, conforme VITE_LYRA_AMBIENTE. */
+    productApi: resolveProductApiUrl(),
     productBase: '/api/salao',
 } as const;
 

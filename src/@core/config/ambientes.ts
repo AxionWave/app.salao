@@ -1,20 +1,20 @@
 /**
  * Troca local ↔ homolog sem editar URL.
  *
- * .env.local (exemplo):
- *   VITE_GATEWAY_AMBIENTE=homolog
- *   VITE_LYRA_AMBIENTE=homolog
- *   VITE_OAUTH_AMBIENTE=homolog
- *
- * O SPA só fala com o Gateway. VITE_OAUTH_AMBIENTE não muda a URL do browser:
- * oAuth/Core/Orion/Lyra são escolhidos pelo Gateway que você apontar.
+ * .env.local (híbrido Lyra):
+ *   VITE_GATEWAY_AMBIENTE=homolog   → login / oAuth / Core (VPS)
+ *   VITE_LYRA_AMBIENTE=local        → API Lyra em http://localhost:8092
  */
+
 export type Ambiente = 'local' | 'homolog';
 
 export const GATEWAY_BY_AMBIENTE: Record<Ambiente, string> = {
     local: 'http://localhost:8080',
     homolog: 'https://enterprise.lumenemotion.com.br',
 };
+
+export const LYRA_API_LOCAL = 'http://localhost:8092';
+
 
 export function parseAmbiente(value: unknown): Ambiente | null {
     const v = String(value ?? '')
@@ -41,7 +41,7 @@ export function resolveGatewayUrl(productAmbiente?: unknown): { url: string; amb
             ? 'local'
             : 'homolog'
         : null;
-    const ambiente: Ambiente = product || gateway || app || fromUrl || 'local';
+    const ambiente: Ambiente = gateway || app || fromUrl || product || 'local';
     const url = GATEWAY_BY_AMBIENTE[ambiente];
 
     const oauth = parseAmbiente(import.meta.env.VITE_OAUTH_AMBIENTE);
@@ -56,6 +56,16 @@ export function resolveGatewayUrl(productAmbiente?: unknown): { url: string; amb
     return { url, ambiente };
 }
 
+/**
+ * API de negócio do Lyra — independente do Gateway.
+ * `VITE_LYRA_AMBIENTE=local` → :8092 na máquina. Senão, o mesmo host do Gateway (VPS).
+ */
+export function resolveProductApiUrl(): string {
+    const lyra = parseAmbiente(import.meta.env.VITE_LYRA_AMBIENTE);
+    if (lyra === 'local') return LYRA_API_LOCAL;
+    return resolveGatewayUrl().url;
+}
+
 /** Início do ASC (hub). VITE_ASC_AMBIENTE, senão localhost → :3000, senão /app/ na VPS. */
 export function urlInicioAsc(): string {
     const explicit = parseAmbiente(import.meta.env.VITE_ASC_AMBIENTE);
@@ -68,4 +78,18 @@ export function urlInicioAsc(): string {
     return ambiente === 'local'
         ? 'http://localhost:3000/inicio'
         : 'https://enterprise.lumenemotion.com.br/app/inicio';
+}
+
+/** Primeiro acesso / senha inicial no ASC (não clonamos o fluxo no Lyra). */
+export function urlPrimeiroAcessoAsc(): string {
+    const explicit = parseAmbiente(import.meta.env.VITE_ASC_AMBIENTE);
+    const fromHost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'local'
+            : 'homolog';
+    const ambiente: Ambiente = explicit || fromHost;
+    return ambiente === 'local'
+        ? 'http://localhost:3000/primeiro-acesso'
+        : 'https://enterprise.lumenemotion.com.br/app/primeiro-acesso';
 }
