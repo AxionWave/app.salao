@@ -10,6 +10,7 @@ export interface ModalProps {
     children: ReactNode;
     rodape?: ReactNode;
     largura?: string;
+    variante?: 'centro' | 'lateral';
 }
 
 export default function Modal({
@@ -21,7 +22,9 @@ export default function Modal({
     children,
     rodape,
     largura = '36rem',
+    variante = 'centro',
 }: ModalProps) {
+    const lateral = variante === 'lateral';
     useEffect(() => {
         if (!aberto) return;
         const onKey = (e: KeyboardEvent) => {
@@ -39,26 +42,60 @@ export default function Modal({
     if (!aberto) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-6">
+        <div
+            className={
+                lateral
+                    ? 'fixed inset-0 z-[80] flex items-stretch justify-end'
+                    : 'fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-6'
+            }
+        >
             <button
                 type="button"
                 className="lyra-fade absolute inset-0"
-                style={{
-                    background: 'color-mix(in oklab, var(--background) 35%, black 50%)',
-                    backdropFilter: 'blur(10px)',
-                }}
+                style={
+                    lateral
+                        ? {
+                              background:
+                                  'linear-gradient(90deg, oklch(0 0 0 / 0.12) 0%, oklch(0 0 0 / 0.22) 48%, oklch(0 0 0 / 0.4) 100%)',
+                          }
+                        : {
+                              background: 'color-mix(in oklab, var(--background) 45%, black 32%)',
+                              backdropFilter: 'blur(5px)',
+                          }
+                }
                 aria-label="Fechar"
                 onClick={onClose}
             />
+            {lateral && (
+                <div
+                    className="pointer-events-none absolute inset-0"
+                    aria-hidden
+                    style={{
+                        backdropFilter: 'blur(7px)',
+                        WebkitBackdropFilter: 'blur(7px)',
+                        maskImage: 'linear-gradient(90deg, transparent 0%, transparent 32%, black 82%)',
+                        WebkitMaskImage: 'linear-gradient(90deg, transparent 0%, transparent 32%, black 82%)',
+                    }}
+                />
+            )}
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="lyra-modal-titulo"
-                className="lyra-rise relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden sm:max-w-[min(100%,var(--lyra-modal-w))]"
+                className={
+                    lateral
+                        ? 'lyra-slide relative z-10 flex h-dvh w-full flex-col overflow-hidden sm:w-[min(100%,var(--lyra-modal-w))] sm:rounded-l-[var(--lyra-radius)]'
+                        : 'lyra-rise relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden sm:max-w-[min(100%,var(--lyra-modal-w))]'
+                }
                 style={{
                     ['--lyra-modal-w' as string]: largura,
-                    borderRadius: 'var(--lyra-radius-lg)',
-                    border: '1px solid color-mix(in oklab, var(--copper) 28%, var(--line))',
+                    borderRadius: lateral ? undefined : 'var(--lyra-radius)',
+                    border: lateral
+                        ? 'none'
+                        : '1px solid color-mix(in oklab, var(--copper) 28%, var(--line))',
+                    borderLeft: lateral
+                        ? '1px solid color-mix(in oklab, var(--copper) 28%, var(--line))'
+                        : undefined,
                     background: 'var(--card)',
                     boxShadow: 'var(--lyra-shadow-md), 0 0 0 1px color-mix(in oklab, var(--copper) 12%, transparent)',
                 }}
@@ -68,7 +105,7 @@ export default function Modal({
                     style={{ background: 'var(--gradient-copper)' }}
                     aria-hidden
                 />
-                <div className="relative px-6 pb-4 pr-16 pt-5">
+                <div className="relative shrink-0 px-6 pb-4 pr-16 pt-5">
                     {eyebrow && (
                         <p
                             className="text-[11px] font-semibold uppercase tracking-[0.18em]"
@@ -110,10 +147,10 @@ export default function Modal({
                         </svg>
                     </button>
                 </div>
-                <div className="min-h-0 flex-1 px-6 py-1">{children}</div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-1">{children}</div>
                 {rodape && (
                     <div
-                        className="mt-2 flex justify-end gap-2 border-t px-6 py-4"
+                        className="mt-auto flex shrink-0 justify-end gap-2 border-t px-6 py-4"
                         style={{
                             borderColor: 'var(--line)',
                             background: 'color-mix(in oklab, var(--panel2) 70%, transparent)',

@@ -6,6 +6,8 @@ import { authService } from '@core/services';
 import { lyraClient } from '@core/services/http.service';
 import { API_CONFIG } from '@core/config';
 import { MODULOS } from '@/constants/moduleCodes';
+import { Alert } from '@/components/ui';
+import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 
 interface MeResponse {
     product: string;
@@ -27,7 +29,7 @@ export default function InicioPage() {
         lyraClient
             .get<MeResponse>(`${API_CONFIG.productBase}/me`)
             .then((r) => setMe(r.data))
-            .catch(() => setError('Não foi possível falar com a API Lyra em localhost:8092. Suba a api.salao.'));
+            .catch((e) => setError(mensagemErroHttp(e, 'Não foi possível falar com a API Lyra. Suba a api.salao.')));
     }, []);
 
     return (
@@ -49,9 +51,9 @@ export default function InicioPage() {
                 <div className="p-5">
                     <h2 className="text-sm font-semibold">Integração API (GET {API_CONFIG.productBase}/me)</h2>
                     {error && (
-                        <p className="mt-2 text-sm" style={{ color: 'var(--destructive)' }}>
-                            {error}
-                        </p>
+                        <div className="mt-3">
+                            <Alert titulo={tituloDeMensagem(error)}>{error}</Alert>
+                        </div>
                     )}
                     {me && (
                         <pre

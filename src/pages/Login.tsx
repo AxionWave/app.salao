@@ -5,7 +5,8 @@ import { authService } from '@core/services';
 import { APP_CONFIG } from '@core/config';
 import { MODULOS_RAIZ, temModuloRaiz } from '@/constants/moduleCodes';
 import ThemeToggle from '@/components/ui/ThemeToggle';
-import { Button } from '@/components/ui';
+import { Alert, Button } from '@/components/ui';
+import { mensagemErroHttp } from '@/exceptions';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -49,14 +50,10 @@ export default function LoginPage() {
             }
             navigate('/inicio', { replace: true });
         } catch (err) {
-            if (axios.isAxiosError(err) && (err.response?.status === 401 || err.code === 'ERR_NETWORK')) {
-                setError(
-                    err.code === 'ERR_NETWORK'
-                        ? 'Não foi possível contatar o Gateway. Confira VITE_GATEWAY_URL.'
-                        : 'E-mail ou senha incorretos.'
-                );
+            if (axios.isAxiosError(err) && err.response?.status === 401) {
+                setError('E-mail ou senha incorretos.');
             } else {
-                setError('Erro ao entrar. Tente novamente.');
+                setError(mensagemErroHttp(err, 'Não foi possível entrar. Tente novamente.'));
             }
         } finally {
             setLoading(false);
@@ -154,16 +151,7 @@ export default function LoginPage() {
                                 </span>
                             </label>
                             {error && (
-                                <p
-                                    className="rounded-lyra px-3 py-2 text-sm"
-                                    style={{
-                                        background: 'var(--lyra-danger-bg)',
-                                        color: 'var(--lyra-danger)',
-                                    }}
-                                    role="alert"
-                                >
-                                    {error}
-                                </p>
+                                <Alert titulo="Não foi possível entrar">{error}</Alert>
                             )}
                             <Button type="submit" disabled={loading} variant="primary" fullWidth>
                                 {loading ? 'Entrando…' : 'Entrar'}

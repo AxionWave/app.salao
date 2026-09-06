@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AxiosError } from 'axios';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
-import { Badge, Button, Combobox, Input, Modal, Switch, Table } from '@/components/ui';
+import { Alert, Badge, Button, Combobox, Input, Modal, Switch, Table } from '@/components/ui';
+import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import { servicoService, type SalvarServico, type Servico } from '@/services/servico.service';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -28,12 +28,39 @@ function formatarPrecoInput(valor: number): string {
     return String(valor).replace('.', ',');
 }
 
-function mensagemErro(err: unknown): string {
-    const ax = err as AxiosError<{ message?: string }>;
-    if (ax.code === 'ERR_NETWORK') {
-        return 'API Lyra local (:8092) fora do ar. Suba a api.salao.';
+type UnidadeDuracao = 'min' | 'hora';
+
+function parseNumero(texto: string): number {
+    const n = Number(texto.trim().replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+}
+
+function minutosDaDuracao(texto: string, unidade: UnidadeDuracao): number {
+    const n = parseNumero(texto);
+    if (n <= 0) return 0;
+    const min = unidade === 'hora' ? Math.round(n * 60) : Math.round(n);
+    return Math.min(24 * 60, min);
+}
+
+function textoDaDuracao(minutos: number, unidade: UnidadeDuracao): string {
+    if (unidade === 'hora') {
+        const h = minutos / 60;
+        if (!Number.isFinite(h) || h <= 0) return '';
+        return Number.isInteger(h) ? String(h) : String(h).replace('.', ',');
     }
-    return ax.response?.data?.message || 'Não foi possível concluir a operação.';
+    return minutos > 0 ? String(minutos) : '';
+}
+
+function unidadeSugerida(minutos: number): UnidadeDuracao {
+    return minutos >= 60 && minutos % 60 === 0 ? 'hora' : 'min';
+}
+
+function formatarDuracao(minutos: number): string {
+    if (minutos < 60) return `${minutos} min`;
+    const h = Math.floor(minutos / 60);
+    const m = minutos % 60;
+    if (m === 0) return `${h} h`;
+    return `${h} h ${m} min`;
 }
 
 export default function ServicosPage() {
@@ -48,6 +75,8 @@ export default function ServicosPage() {
     const [editando, setEditando] = useState<Servico | null>(null);
     const [form, setForm] = useState<SalvarServico>(vazio);
     const [precoTexto, setPrecoTexto] = useState('');
+    const [unidadeDuracao, setUnidadeDuracao] = useState<UnidadeDuracao>('min');
+    const [duracaoTexto, setDuracaoTexto] = useState('30');
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
     const [categorias, setCategorias] = useState<string[]>([]);
@@ -73,7 +102,7 @@ export default function ServicosPage() {
             setTotal(data.total);
             setCategorias(data.categorias ?? []);
         } catch (e) {
-            setErroLista(mensagemErro(e));
+            setErroLista(mensagemErroHttp(e));
             setItens([]);
             setTotal(0);
         } finally {
@@ -88,7 +117,8 @@ export default function ServicosPage() {
     }, [pagina, filtroAtivo]);
 
     const tituloForm = editando ? 'Editar serviço' : 'Novo serviço';
-    const podeSalvar = form.nome.trim().length > 0 && form.duracaoMinutos >= 1 && form.preco >= 0;
+    const podeSalvar =
+        form.nome.trim().length > 0 && form.duracaoMinutos >= 1 && form.duracaoMinutos <= 1440 && form.preco >= 0;
 
     const fecharForm = () => {
         if (salvando) return;
@@ -99,6 +129,8 @@ export default function ServicosPage() {
         setEditando(null);
         setForm({ ...vazio });
         setPrecoTexto('');
+        setUnidadeDuracao('min');
+        setDuracaoTexto('30');
         setFormErro('');
         setFormAberto(true);
     };
@@ -113,6 +145,9 @@ export default function ServicosPage() {
             ativo: s.ativo,
         });
         setPrecoTexto(formatarPrecoInput(s.preco));
+        const unidade = unidadeSugerida(s.duracaoMinutos);
+        setUnidadeDuracao(unidade);
+        setDuracaoTexto(textoDaDuracao(s.duracaoMinutos, unidade));
         setFormErro('');
         setFormAberto(true);
     };
@@ -142,7 +177,7 @@ export default function ServicosPage() {
                 else await carregar();
             }
         } catch (e) {
-            setFormErro(mensagemErro(e));
+            setFormErro(mensagemErroHttp(e));
         } finally {
             setSalvando(false);
         }
@@ -154,7 +189,7 @@ export default function ServicosPage() {
             await servicoService.alterarAtivo(s.id, !s.ativo);
             await carregar();
         } catch (e) {
-            setErroLista(mensagemErro(e));
+            setErroLista(mensagemErroHttp(e));
         }
     };
 
@@ -217,9 +252,9 @@ export default function ServicosPage() {
                 </div>
 
                 {erroLista && (
-                    <p className="mb-4 text-sm" style={{ color: 'var(--destructive)' }} role="alert">
-                        {erroLista}
-                    </p>
+                    <div className="mb-4">
+                        <Alert titulo={tituloDeMensagem(erroLista)}>{erroLista}</Alert>
+                    </div>
                 )}
 
                 {carregando && (
@@ -258,7 +293,7 @@ export default function ServicosPage() {
                                             </span>
                                         </Table.Cell>
                                         <Table.Cell>{s.categoria || '—'}</Table.Cell>
-                                        <Table.Cell>{s.duracaoMinutos} min</Table.Cell>
+                                        <Table.Cell>{formatarDuracao(s.duracaoMinutos)}</Table.Cell>
                                         <Table.Cell>{brl.format(s.preco)}</Table.Cell>
                                         <Table.Cell>
                                             <Badge variant={s.ativo ? 'ok' : 'faint'} size="sm">
@@ -348,17 +383,57 @@ export default function ServicosPage() {
                         value={form.categoria ?? ''}
                         onChange={(categoria) => setForm((f) => ({ ...f, categoria }))}
                     />
-                    <Input
-                        label="Duração (minutos)"
-                        type="number"
-                        min={1}
-                        max={1440}
-                        required
-                        value={form.duracaoMinutos}
-                        onChange={(e) =>
-                            setForm((f) => ({ ...f, duracaoMinutos: Number(e.target.value) || 0 }))
-                        }
-                    />
+                    <div className="w-full">
+                        <label className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                            Duração
+                            <span style={{ color: 'var(--destructive)' }}> *</span>
+                        </label>
+                        <div className="flex gap-2">
+                            <input
+                                className="lyra-input min-w-0 flex-1"
+                                style={{ marginTop: 0 }}
+                                inputMode={unidadeDuracao === 'hora' ? 'decimal' : 'numeric'}
+                                placeholder={unidadeDuracao === 'hora' ? '1,5' : '30'}
+                                value={duracaoTexto}
+                                onChange={(e) => {
+                                    const texto =
+                                        unidadeDuracao === 'hora'
+                                            ? e.target.value.replace(/[^\d,]/g, '')
+                                            : e.target.value.replace(/\D/g, '');
+                                    setDuracaoTexto(texto);
+                                    setForm((f) => ({
+                                        ...f,
+                                        duracaoMinutos: minutosDaDuracao(texto, unidadeDuracao),
+                                    }));
+                                }}
+                            />
+                            <div className="flex shrink-0 gap-1">
+                                {(['min', 'hora'] as const).map((u) => (
+                                    <Button
+                                        key={u}
+                                        size="sm"
+                                        variant={unidadeDuracao === u ? 'primary' : 'secondary'}
+                                        onClick={() => {
+                                            if (u === unidadeDuracao) return;
+                                            setUnidadeDuracao(u);
+                                            setDuracaoTexto(textoDaDuracao(form.duracaoMinutos, u));
+                                        }}
+                                    >
+                                        {u === 'min' ? 'Min' : 'Horas'}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                        <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>
+                            {form.duracaoMinutos > 0
+                                ? unidadeDuracao === 'hora'
+                                    ? `Equivale a ${form.duracaoMinutos} min`
+                                    : form.duracaoMinutos >= 60
+                                      ? `Equivale a ${formatarDuracao(form.duracaoMinutos)}`
+                                      : 'Até 24 horas'
+                                : 'Informe a duração em minutos ou horas'}
+                        </p>
+                    </div>
                     <Input
                         label="Preço (R$)"
                         inputMode="decimal"
@@ -381,9 +456,9 @@ export default function ServicosPage() {
                     />
                 </div>
                 {formErro && (
-                    <p className="mt-3 text-sm" style={{ color: 'var(--destructive)' }} role="alert">
-                        {formErro}
-                    </p>
+                    <div className="mt-3">
+                        <Alert titulo={tituloDeMensagem(formErro)}>{formErro}</Alert>
+                    </div>
                 )}
             </Modal>
         </PageLayout>

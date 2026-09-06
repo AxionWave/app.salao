@@ -151,4 +151,12 @@ export const authService = {
             return false;
         }
     },
+
+    clearPasswordChangeFlag(): void {
+        localStorage.removeItem(AUTH_STORAGE_KEYS.MUST_CHANGE_PASSWORD);
+    },
+
+    async definirSenhaInicial(email: string, novaSenha: string): Promise<void> {
+        await httpClient.post('/api/usuarios/definir-senha-inicial', { email, novaSenha });
+    },
 };

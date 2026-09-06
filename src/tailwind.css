@@ -143,6 +143,19 @@
         color: var(--foreground);
         -webkit-font-smoothing: antialiased;
     }
+
+    /* Só o texto «Mostrar»; esconde o olho nativo do Edge/Chrome */
+    input[type='password']::-ms-reveal,
+    input[type='password']::-ms-clear,
+    input[type='password']::-webkit-credentials-auto-fill-button,
+    input[type='password']::-webkit-strong-password-auto-fill-button {
+        display: none !important;
+        visibility: hidden;
+        pointer-events: none;
+        width: 0;
+        height: 0;
+        margin: 0;
+    }
 }
 
 @keyframes lyra-fade {
@@ -165,6 +178,17 @@
     }
 }
 
+@keyframes lyra-slide {
+    from {
+        opacity: 0;
+        transform: translateX(1.25rem);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
 @layer components {
     .lyra-input {
         @apply mt-1 w-full text-sm transition-colors;
@@ -177,6 +201,17 @@
 
     .lyra-input:focus {
         outline: none;
+        border-color: var(--ring);
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--copper) 35%, transparent);
+    }
+
+    .lyra-phone {
+        border-radius: var(--radius);
+        border: 1px solid var(--input);
+        background: var(--card);
+    }
+
+    .lyra-phone:focus-within {
         border-color: var(--ring);
         box-shadow: 0 0 0 3px color-mix(in oklab, var(--copper) 35%, transparent);
     }
@@ -209,6 +244,31 @@
         background: var(--gradient-panel-hover);
     }
 
+    .lyra-card-quiet:hover {
+        border-color: var(--line);
+        background: var(--gradient-panel);
+    }
+
+    .lyra-agenda-slot {
+        transition: background 0.16s var(--ease-lyra);
+    }
+
+    .lyra-agenda-slot:hover:not(:disabled) {
+        background: color-mix(in oklab, var(--copper) 12%, transparent);
+    }
+
+    .lyra-agenda-bloco {
+        transition:
+            transform 0.16s var(--ease-lyra),
+            box-shadow 0.16s var(--ease-lyra);
+    }
+
+    .lyra-agenda-bloco:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--lyra-shadow-md);
+        z-index: 20;
+    }
+
     .lyra-row:hover {
         background: color-mix(in oklab, white 4%, transparent);
     }
@@ -238,6 +298,10 @@
 
     .lyra-rise {
         animation: lyra-rise 0.4s var(--ease-lyra) both;
+    }
+
+    .lyra-slide {
+        animation: lyra-slide 0.4s var(--ease-lyra) both;
     }
 
     .lyra-fade {
