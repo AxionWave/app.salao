@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAbrirNovoDaQuery } from '@/lib/queryNovo';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import { Alert, Badge, Button, Combobox, Input, Modal, Switch, Table } from '@/components/ui';
@@ -134,6 +135,8 @@ export default function ServicosPage() {
         setFormErro('');
         setFormAberto(true);
     };
+
+    useAbrirNovoDaQuery(!carregando, abrirNovo);
 
     const abrirEditar = (s: Servico) => {
         setEditando(s);

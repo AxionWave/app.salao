@@ -108,6 +108,39 @@ export function formatarFaixaSemana(ini: Date): string {
     })}`;
 }
 
+export function isoData(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    const x = cloneDia(d);
+    return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`;
+}
+
+export function parseIsoData(s: string | null | undefined): Date | null {
+    if (!s) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s.trim());
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return Number.isNaN(d.getTime()) ? null : cloneDia(d);
+}
+
+export function inicioDoMes(d: Date): Date {
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+export function adicionarMeses(d: Date, n: number): Date {
+    return new Date(d.getFullYear(), d.getMonth() + n, 1);
+}
+
+export function formatarMesAno(d: Date): string {
+    const texto = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/** Grade de 6 semanas (seg–dom) cobrindo o mês de `d`. */
+export function celulasDoMes(d: Date): Date[] {
+    const ini = inicioDaSemana(inicioDoMes(d));
+    return Array.from({ length: 42 }, (_, i) => adicionarDias(ini, i));
+}
+
 export function mesmoDia(iso: string, dia: Date): boolean {
     const d = new Date(iso);
     return d.getFullYear() === dia.getFullYear() && d.getMonth() === dia.getMonth() && d.getDate() === dia.getDate();

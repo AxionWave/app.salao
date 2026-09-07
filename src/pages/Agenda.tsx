@@ -1,5 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import GradeDia from '@/components/agenda/GradeDia';
@@ -21,6 +21,7 @@ import {
     labelStatus,
     ocupaHorario,
     paraDatetimeLocal,
+    parseIsoData,
     partesDia,
     statusTerminal,
     transicoesDe,
@@ -89,8 +90,12 @@ function CampoSelect({
 }
 
 export default function AgendaPage() {
-    const [visao, setVisao] = useState<Visao>('dia');
-    const [cursor, setCursor] = useState(() => cloneDia(new Date()));
+    const [searchParams, setSearchParams] = useSearchParams();
+    const queryConsumida = useRef(false);
+    const [visao, setVisao] = useState<Visao>(() =>
+        searchParams.get('visao') === 'semana' ? 'semana' : 'dia'
+    );
+    const [cursor, setCursor] = useState(() => parseIsoData(searchParams.get('data')) ?? cloneDia(new Date()));
     const [filtroProf, setFiltroProf] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
     const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [] });
@@ -198,6 +203,51 @@ export default function AgendaPage() {
         setFormErro('');
         setFormAberto(true);
     };
+
+    useEffect(() => {
+        if (carregando || queryConsumida.current) return;
+        const novo = searchParams.get('novo') === '1';
+        const idRaw = searchParams.get('id');
+        const profParam = searchParams.get('profissionalId');
+        const inicioParam = searchParams.get('inicio');
+        const visaoParam = searchParams.get('visao');
+        const dataParam = parseIsoData(searchParams.get('data'));
+        if (
+            !novo &&
+            !idRaw &&
+            !profParam &&
+            !inicioParam &&
+            visaoParam !== 'dia' &&
+            visaoParam !== 'semana' &&
+            !dataParam
+        ) {
+            return;
+        }
+
+        queryConsumida.current = true;
+        if (visaoParam === 'dia' || visaoParam === 'semana') setVisao(visaoParam);
+        if (dataParam) setCursor(dataParam);
+        else if (inicioParam) {
+            const inicio = new Date(inicioParam);
+            if (!Number.isNaN(inicio.getTime())) setCursor(cloneDia(inicio));
+        }
+        if (profParam && opcoes.profissionais.some((p) => String(p.id) === profParam)) {
+            setFiltroProf(profParam);
+        }
+        if (idRaw) {
+            const item = itens.find((a) => a.id === Number(idRaw));
+            if (item) abrirDetalhe(item);
+        } else if (novo) {
+            const inicio = inicioParam ? new Date(inicioParam) : undefined;
+            abrirNovo({
+                profissionalId: profParam ? Number(profParam) : undefined,
+                inicio: inicio && !Number.isNaN(inicio.getTime()) ? inicio : undefined,
+            });
+        }
+        setSearchParams({}, { replace: true });
+        // Query do início é consumida uma vez; abrirNovo/abrirDetalhe leem o estado atual.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [carregando, itens, opcoes.profissionais, searchParams, setSearchParams]);
 
     const payload = (): SalvarAgendamento | null => {
         const clienteId = Number(form.clienteId);
@@ -463,6 +513,10 @@ export default function AgendaPage() {
                                 agendamentos={itens}
                                 onSlot={(profissionalId, inicio) => abrirNovo({ profissionalId, inicio })}
                                 onAbrir={abrirDetalhe}
+                                onDia={(dia) => {
+                                    setCursor(dia);
+                                    setVisao('dia');
+                                }}
                             />
                         )}
                     </div>

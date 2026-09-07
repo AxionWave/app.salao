@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAbrirNovoDaQuery } from '@/lib/queryNovo';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import ExpedienteAgenda from '@/components/ExpedienteAgenda';
@@ -218,6 +219,8 @@ export default function ProfissionaisPage() {
         setFormErro('');
         setFormAberto(true);
     };
+
+    useAbrirNovoDaQuery(!carregando, abrirNovo);
 
     const abrirEditar = async (p: Profissional) => {
         setEditando(p);

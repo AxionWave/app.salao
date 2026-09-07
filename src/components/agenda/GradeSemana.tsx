@@ -19,19 +19,26 @@ export default function GradeSemana({
     agendamentos,
     onSlot,
     onAbrir,
+    onDia,
+    compact = false,
 }: {
     dias: Date[];
     profissionais: ProfissionalAgenda[];
     agendamentos: Agendamento[];
     onSlot: (profissionalId: number, inicio: Date) => void;
     onAbrir: (a: Agendamento) => void;
+    onDia?: (dia: Date) => void;
+    compact?: boolean;
 }) {
     const hoje = cloneDia(new Date());
     const unico = profissionais.length === 1 ? profissionais[0] : null;
 
     return (
         <div className="overflow-x-auto">
-            <div className="grid min-w-[56rem] gap-2.5" style={{ gridTemplateColumns: 'repeat(7, minmax(8rem, 1fr))' }}>
+            <div
+                className={`grid gap-2.5 ${compact ? 'min-w-[44rem]' : 'min-w-[56rem]'}`}
+                style={{ gridTemplateColumns: 'repeat(7, minmax(7.5rem, 1fr))' }}
+            >
                 {dias.map((dia) => {
                     const rotulo = formatarDiaColuna(dia);
                     const doDia = agendamentos
@@ -43,15 +50,18 @@ export default function GradeSemana({
                     return (
                         <div
                             key={dia.toISOString()}
-                            className="flex min-h-[22rem] flex-col overflow-hidden rounded-lyra border"
+                            className={`flex flex-col overflow-hidden rounded-lyra border ${compact ? 'min-h-[16rem]' : 'min-h-[22rem]'}`}
                             style={{
                                 borderColor: ehHoje ? 'var(--copper)' : 'var(--line)',
                                 background: 'var(--panel)',
                                 boxShadow: ehHoje ? '0 0 0 1px color-mix(in oklab, var(--copper) 35%, transparent)' : undefined,
                             }}
                         >
-                            <div
-                                className="px-2.5 py-2"
+                            <button
+                                type="button"
+                                disabled={!onDia}
+                                onClick={() => onDia?.(dia)}
+                                className={`w-full px-2.5 py-2 text-left ${onDia ? 'cursor-pointer' : 'cursor-default'}`}
                                 style={{
                                     background: ehHoje
                                         ? 'color-mix(in oklab, var(--copper) 14%, var(--panel))'
@@ -73,12 +83,18 @@ export default function GradeSemana({
                                 <p className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
                                     {ativos === 0 ? 'Livre' : `${ativos} horário${ativos === 1 ? '' : 's'}`}
                                 </p>
-                            </div>
+                            </button>
                             <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2">
                                 {doDia.length === 0 && (
-                                    <p className="px-1 py-3 text-center text-[11px]" style={{ color: 'var(--faint)' }}>
+                                    <button
+                                        type="button"
+                                        disabled={!onDia}
+                                        onClick={() => onDia?.(dia)}
+                                        className="px-1 py-3 text-center text-[11px] disabled:cursor-default"
+                                        style={{ color: 'var(--faint)' }}
+                                    >
                                         Sem horários
-                                    </p>
+                                    </button>
                                 )}
                                 {doDia.map((a) => (
                                     <button

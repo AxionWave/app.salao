@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAbrirNovoDaQuery } from '@/lib/queryNovo';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import { Alert, Badge, Button, Input, Modal, PhoneInput, Switch, Table, Textarea } from '@/components/ui';
@@ -77,6 +78,8 @@ export default function ClientesPage() {
         setFormErro('');
         setFormAberto(true);
     };
+
+    useAbrirNovoDaQuery(!carregando, abrirNovo);
 
     const abrirEditar = (c: Cliente) => {
         setEditando(c);

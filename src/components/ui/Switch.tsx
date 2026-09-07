@@ -3,16 +3,21 @@ export interface SwitchProps {
     onChange: (checked: boolean) => void;
     label: string;
     descricao?: string;
+    disabled?: boolean;
 }
 
-export default function Switch({ checked, onChange, label, descricao }: SwitchProps) {
+export default function Switch({ checked, onChange, label, descricao, disabled }: SwitchProps) {
     return (
         <button
             type="button"
             role="switch"
             aria-checked={checked}
-            onClick={() => onChange(!checked)}
-            className="flex w-full items-center justify-between gap-4 rounded-lyra border px-4 py-3.5 text-left transition-colors"
+            disabled={disabled}
+            onClick={() => {
+                if (disabled) return;
+                onChange(!checked);
+            }}
+            className="flex w-full items-center justify-between gap-4 rounded-lyra border px-4 py-3.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             style={{
                 borderColor: checked
                     ? 'color-mix(in oklab, var(--copper) 45%, var(--line))'
