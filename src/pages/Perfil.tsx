@@ -4,6 +4,7 @@ import { buildSsoLaunchUrl } from '@core/auth/sso';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import { Badge, Button } from '@/components/ui';
+import { temAcessoHubAsc } from '@/lib/acesso';
 
 export default function PerfilPage() {
     const user = authService.getStoredUserInfo();
@@ -15,7 +16,10 @@ export default function PerfilPage() {
             <PageCard fill={false}>
                 <div className="p-6 md:p-8">
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                        Dados do JWT Enterprise. Para alterar senha, use o ASC.
+                        Dados do JWT Enterprise.
+                        {temAcessoHubAsc()
+                            ? ' Para alterar senha, use o ASC.'
+                            : ' A senha é definida no primeiro acesso deste login.'}
                     </p>
                     <dl className="mt-6 grid gap-4 sm:grid-cols-2">
                         <div>
@@ -75,6 +79,7 @@ export default function PerfilPage() {
                             )}
                         </div>
                     </div>
+                    {temAcessoHubAsc() && (
                     <div className="mt-8">
                         <Button
                             variant="secondary"
@@ -83,6 +88,7 @@ export default function PerfilPage() {
                             Abrir ASC para alterar senha
                         </Button>
                     </div>
+                    )}
                 </div>
             </PageCard>
         </PageLayout>

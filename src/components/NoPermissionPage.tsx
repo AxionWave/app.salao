@@ -16,7 +16,7 @@ export default function NoPermissionPage({
                 show: true,
                 message:
                     texto ||
-                    'Você não tem permissão para acessar este módulo. Peça acesso no ASC e faça login novamente.',
+                    'Você não tem permissão para esta área. Fale com quem administra a empresa.',
             }}
         />
     );

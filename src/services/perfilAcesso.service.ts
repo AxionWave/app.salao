@@ -99,7 +99,7 @@ export function ehClienteAdmin(nome: string): boolean {
 }
 
 export function ehFuncionarioLyra(nome: string): boolean {
-    return (nome || '').trim().toLowerCase() === 'funcionário lyra';
+    return /funcion[aá]rio\s+lyra/i.test((nome || '').trim());
 }
 
 function codigoSistema(p: { sistemaCodigo?: string | null }): string {

@@ -8,7 +8,7 @@ type CorpoErro = {
 };
 
 const TECNICO =
-    /duplicate key|violates unique|could not execute|insert into|sql \[|constraint |org\.hibernate|npgsql|psql|stack trace|error: duplicate/i;
+    /duplicate key|violates unique|could not execute|insert into|sql \[|constraint |org\.hibernate|npgsql|psql|stack trace|error: duplicate|\bJWT\b|LYRA?\d{7}/i;
 
 function textoDoErro(err: unknown): string {
     const ax = err as AxiosError<CorpoErro>;

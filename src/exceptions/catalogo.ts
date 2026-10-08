@@ -14,6 +14,10 @@ export const MENSAGENS_CAMPO: Record<string, string> = {
 export const MENSAGEM_DUPLICIDADE_GENERICA =
     'Estes dados já estão cadastrados. Confira CPF, e-mail ou telefone.';
 
+/** Conta Enterprise válida, mas sem o produto Lyra. Sem códigos de módulo nem JWT. */
+export const MENSAGEM_SEM_ACESSO_LYRA =
+    'Sua conta não está liberada neste sistema. Fale com quem administra a empresa.';
+
 export const TITULOS = {
     duplicidade: 'Cadastro duplicado',
     acesso: 'Acesso negado',

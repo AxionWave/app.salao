@@ -46,7 +46,7 @@ export default function PageLayout({
                         <h1 className="mt-4 font-display text-2xl font-semibold">Permissão insuficiente</h1>
                         <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
                             {accessDenied.message ||
-                                'Você não tem permissão para acessar este módulo. Peça acesso no ASC e faça login novamente.'}
+                                'Você não tem permissão para esta área. Fale com quem administra a empresa.'}
                         </p>
                         <Link to="/inicio" className="mt-6 inline-block">
                             <Button variant="primary">Voltar ao início</Button>

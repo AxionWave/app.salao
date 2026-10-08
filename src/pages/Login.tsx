@@ -3,18 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { authService } from '@core/services';
 import { APP_CONFIG } from '@core/config';
-import { MODULOS_RAIZ, temModuloRaiz } from '@/constants/moduleCodes';
+import { temModuloRaiz } from '@/constants/moduleCodes';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { Alert, Button } from '@/components/ui';
-import { mensagemErroHttp } from '@/exceptions';
+import { MENSAGEM_SEM_ACESSO_LYRA, mensagemErroHttp } from '@/exceptions';
+
+type AlertaLogin = { titulo: string; texto: string };
+
+const ALERTA_SEM_ACESSO: AlertaLogin = {
+    titulo: 'Sem acesso ao Lyra',
+    texto: MENSAGEM_SEM_ACESSO_LYRA,
+};
 
 export default function LoginPage() {
     const navigate = useNavigate();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
+    const [alerta, setAlerta] = useState<AlertaLogin | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const recusarSemAcesso = () => {
+        authService.logout();
+        setAlerta(ALERTA_SEM_ACESSO);
+    };
 
     useEffect(() => {
         if (authService.isAuthenticated() && authService.needsPasswordChange()) {
@@ -26,15 +38,13 @@ export default function LoginPage() {
             return;
         }
         if (authService.isAuthenticated()) {
-            setError(
-                `Sessão Enterprise recebida, mas o JWT não tem ${MODULOS_RAIZ.join(' ou ')}. Use o login abaixo ou peça acesso no ASC.`
-            );
+            recusarSemAcesso();
         }
     }, [navigate]);
 
     const onSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError('');
+        setAlerta(null);
         setLoading(true);
         try {
             const res = await authService.login({ username: username.trim(), password });
@@ -43,17 +53,18 @@ export default function LoginPage() {
                 return;
             }
             if (!temModuloRaiz((c) => authService.hasModulo(c))) {
-                setError(
-                    `Login ok, mas o JWT não tem ${MODULOS_RAIZ.join(' ou ')}. Rode o seed e faça login novamente.`
-                );
+                recusarSemAcesso();
                 return;
             }
             navigate('/inicio', { replace: true });
         } catch (err) {
             if (axios.isAxiosError(err) && err.response?.status === 401) {
-                setError('E-mail ou senha incorretos.');
+                setAlerta({ titulo: 'Não foi possível entrar', texto: 'E-mail ou senha incorretos.' });
             } else {
-                setError(mensagemErroHttp(err, 'Não foi possível entrar. Tente novamente.'));
+                setAlerta({
+                    titulo: 'Não foi possível entrar',
+                    texto: mensagemErroHttp(err, 'Tente novamente em instantes.'),
+                });
             }
         } finally {
             setLoading(false);
@@ -72,7 +83,7 @@ export default function LoginPage() {
                 <div>
                     <h1 className="font-display text-5xl font-semibold tracking-tight xl:text-6xl">{APP_CONFIG.nome}</h1>
                     <p className="mt-5 max-w-sm text-base leading-relaxed" style={{ color: 'var(--lyra-sidebar-muted)' }}>
-                        {APP_CONFIG.descricao}. Entre com a mesma conta Enterprise do ASC.
+                        {APP_CONFIG.descricao}. Entre com a conta Enterprise. A equipe usa o perfil que o admin definiu no Lyra.
                     </p>
                     <ul className="mt-10 space-y-3 text-sm" style={{ color: 'var(--lyra-sidebar-muted)' }}>
                         <li>Agenda, serviços e clientes no mesmo login</li>
@@ -150,9 +161,7 @@ export default function LoginPage() {
                                     </button>
                                 </span>
                             </label>
-                            {error && (
-                                <Alert titulo="Não foi possível entrar">{error}</Alert>
-                            )}
+                            {alerta && <Alert titulo={alerta.titulo}>{alerta.texto}</Alert>}
                             <Button type="submit" disabled={loading} variant="primary" fullWidth>
                                 {loading ? 'Entrando…' : 'Entrar'}
                             </Button>

@@ -3,10 +3,12 @@ import { authService } from '@core/services';
 import { APP_CONFIG, urlInicioAsc } from '@core/config';
 import { buildSsoLaunchUrl } from '@core/auth/sso';
 import { MODULOS } from '@/constants/moduleCodes';
+import { temAcessoHubAsc } from '@/lib/acesso';
 
 export default function AppSidebar() {
     const user = authService.getStoredUserInfo();
     const nomeEmpresa = user?.empresaNome || APP_CONFIG.empresa;
+    const podeIrAoAsc = temAcessoHubAsc();
 
     const irParaAsc = () => {
         window.location.assign(buildSsoLaunchUrl(urlInicioAsc()));
@@ -32,6 +34,7 @@ export default function AppSidebar() {
                 className="flex h-[var(--lyra-header-height)] shrink-0 items-center border-b px-5"
                 style={{ borderColor: 'var(--lyra-sidebar-border)' }}
             >
+                {podeIrAoAsc ? (
                 <button
                     type="button"
                     onClick={irParaAsc}
@@ -46,6 +49,17 @@ export default function AppSidebar() {
                     </p>
                     <p className="mt-0.5 font-display text-xl font-semibold">{APP_CONFIG.nome}</p>
                 </button>
+                ) : (
+                <div className="min-w-0">
+                    <p
+                        className="truncate text-[11px] font-semibold uppercase tracking-[0.16em]"
+                        style={{ color: 'var(--lyra-sidebar-muted)' }}
+                    >
+                        {nomeEmpresa}
+                    </p>
+                    <p className="mt-0.5 font-display text-xl font-semibold">{APP_CONFIG.nome}</p>
+                </div>
+                )}
             </div>
             <nav className="flex-1 space-y-0.5 p-3">
                 {visiveis.map((m) => (

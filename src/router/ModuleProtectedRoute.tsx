@@ -21,10 +21,7 @@ export default function ModuleProtectedRoute({
     }
     if (!codes.some((c) => authService.hasModulo(c))) {
         return (
-            <NoPermissionPage
-                message={`O módulo ${codes.join(' / ')} não está no seu perfil de acesso.`}
-                description="Peça a liberação no ASC (Cliente Admin) e faça login novamente."
-            />
+            <NoPermissionPage message="Você não tem permissão para esta área. Fale com quem administra a empresa." />
         );
     }
     return <>{children}</>;

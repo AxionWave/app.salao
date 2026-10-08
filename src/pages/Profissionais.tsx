@@ -8,7 +8,7 @@ import { authService } from '@core/services';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import { somenteDigitos, telefoneValido } from '@/lib/telefone';
 import { pessoaService, type Pessoa } from '@/services/pessoa.service';
-import { perfilAcessoService, type PerfilAcesso } from '@/services/perfilAcesso.service';
+import { perfilAcessoService, ehClienteAdmin, ehFuncionarioLyra, type PerfilAcesso } from '@/services/perfilAcesso.service';
 import {
     profissionalService,
     type Intervalo,
@@ -180,15 +180,15 @@ export default function ProfissionaisPage() {
         void perfilAcessoService
             .listarLyra(empresaId || undefined)
             .then((lista) => {
-                setPerfis(lista);
+                const equipe = lista.filter((p) => !ehClienteAdmin(p.nome));
+                setPerfis(equipe);
                 setPerfilId((atual) => {
-                    if (atual !== '' && lista.some((p) => p.id === atual)) return atual;
+                    if (atual !== '' && equipe.some((p) => p.id === atual)) return atual;
                     if (editando) return atual;
-                    const profissional = lista.find((p) => /^profissional$/i.test(p.nome));
-                    const func = lista.find((p) => /funcion[aá]rio\s+lyra/i.test(p.nome));
-                    return profissional?.id ?? func?.id ?? lista[0]?.id ?? '';
+                    const func = equipe.find((p) => ehFuncionarioLyra(p.nome));
+                    return func?.id ?? equipe[0]?.id ?? '';
                 });
-                if (!lista.length) {
+                if (!equipe.length) {
                     setPerfisErro('Nenhum perfil Lyra encontrado para esta empresa.');
                 }
             })
@@ -503,8 +503,8 @@ export default function ProfissionaisPage() {
                 eyebrow="Equipe"
                 subtitulo={
                     editando
-                        ? 'Dados pessoais ficam em pessoas (ASC). Aqui, expediente e cor da agenda.'
-                        : 'Cria a pessoa no ASC e o profissional no Lyra. Padrão: seg–sáb 09:00–19:00.'
+                        ? 'Dados pessoais ficam na ficha da pessoa. Aqui, expediente e cor da agenda.'
+                        : 'Cria a pessoa e o profissional no Lyra. Padrão: seg–sáb 09:00–19:00.'
                 }
                 variante="lateral"
                 largura="34rem"
@@ -549,9 +549,18 @@ export default function ProfissionaisPage() {
                 <div className="mt-5">
                     <Switch
                         checked={podeLogar}
-                        onChange={(v) => setPodeLogar(v)}
+                        onChange={(v) => {
+                            setPodeLogar(v);
+                            if (v) {
+                                setPerfilId((atual) => {
+                                    if (atual !== '') return atual;
+                                    const func = perfis.find((p) => ehFuncionarioLyra(p.nome));
+                                    return func?.id ?? '';
+                                });
+                            }
+                        }}
                         label="Pode fazer login"
-                        descricao="Igual ao ASC: e-mail + perfil. A senha inicial é o CPF (só números)."
+                        descricao="E-mail + perfil Lyra. Senha inicial = CPF (só números); no primeiro acesso o Lyra pede outra."
                     />
                 </div>
                 {podeLogar && (
