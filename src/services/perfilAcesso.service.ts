@@ -107,7 +107,9 @@ function codigoSistema(p: { sistemaCodigo?: string | null }): string {
 }
 
 /** Cliente Admin + perfis do produto LYR (o GET /completo?sistemaCodigo=LYR na VPS hoje devolve 400). */
-function visivelNasConfiguracoesLyra(p: Pick<PerfilLyraCompleto, 'nome' | 'sistemaCodigo' | 'ativo'>): boolean {
+function visivelNasConfiguracoesLyra(
+    p: Pick<PerfilLyraCompleto, 'nome' | 'sistemaCodigo'> & { ativo?: boolean }
+): boolean {
     if (p.ativo === false) return false;
     if (ehClienteAdmin(p.nome) || ehFuncionarioLyra(p.nome)) return true;
     const codigo = codigoSistema(p);

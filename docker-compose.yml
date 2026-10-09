@@ -1,0 +1,9 @@
+services:
+  app-salao:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app-salao
+    ports:
+      - "3002:80"
+    restart: on-failure:5

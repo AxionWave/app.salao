@@ -240,14 +240,15 @@ export default function ProfissionaisPage() {
                 setTelefone(pessoa.telefone ?? '');
                 setPodeLogar(!!pessoa.podeLogar);
                 setEmail(pessoa.emailLogin || pessoa.email || '');
-                setPerfilId(pessoa.perfilAcessoId ?? '');
-                if (pessoa.perfilAcessoId) {
+                const perfilAcessoId = pessoa.perfilAcessoId;
+                setPerfilId(perfilAcessoId ?? '');
+                if (perfilAcessoId != null) {
                     setPerfis((lista) => {
-                        if (lista.some((p) => p.id === pessoa.perfilAcessoId)) return lista;
+                        if (lista.some((p) => p.id === perfilAcessoId)) return lista;
                         return [
                             {
-                                id: pessoa.perfilAcessoId,
-                                nome: pessoa.perfilAcessoNome || `Perfil #${pessoa.perfilAcessoId}`,
+                                id: perfilAcessoId,
+                                nome: pessoa.perfilAcessoNome || `Perfil #${perfilAcessoId}`,
                             },
                             ...lista,
                         ];
