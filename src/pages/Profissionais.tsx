@@ -241,13 +241,14 @@ export default function ProfissionaisPage() {
                 setPodeLogar(!!pessoa.podeLogar);
                 setEmail(pessoa.emailLogin || pessoa.email || '');
                 setPerfilId(pessoa.perfilAcessoId ?? '');
-                if (pessoa.perfilAcessoId) {
+                const perfilDaPessoa = pessoa.perfilAcessoId;
+                if (perfilDaPessoa) {
                     setPerfis((lista) => {
-                        if (lista.some((p) => p.id === pessoa.perfilAcessoId)) return lista;
+                        if (lista.some((p) => p.id === perfilDaPessoa)) return lista;
                         return [
                             {
-                                id: pessoa.perfilAcessoId,
-                                nome: pessoa.perfilAcessoNome || `Perfil #${pessoa.perfilAcessoId}`,
+                                id: perfilDaPessoa,
+                                nome: pessoa.perfilAcessoNome || `Perfil #${perfilDaPessoa}`,
                             },
                             ...lista,
                         ];

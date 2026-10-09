@@ -38,7 +38,7 @@ function Row({ children, className = '', ...props }: HTMLAttributes<HTMLTableRow
     );
 }
 
-function Cell({ children, className = '', ...props }: TdHTMLAttributes<HTMLTableCellElement> & { children: ReactNode }) {
+function Cell({ children, className = '', ...props }: TdHTMLAttributes<HTMLTableCellElement> & { children?: ReactNode }) {
     return (
         <td {...props} className={`px-5 py-3.5 ${className}`}>
             {children}
