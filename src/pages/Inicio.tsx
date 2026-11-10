@@ -578,12 +578,13 @@ export default function InicioPage() {
                                 {`${termos.nenhum('recurso')} ${termos.adj('recurso', 'cadastrado')}.`}
                             </p>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div>
                                 <GradeDia
                                     dia={diaAberto}
                                     profissionais={profissionaisVisiveis}
                                     agendamentos={itens}
                                     bloqueios={bloqueios}
+                                    altura="max(18rem, calc(92dvh - 17rem))"
                                     onSlot={(profissionalId, inicio) =>
                                         irAgenda({
                                             novo: true,

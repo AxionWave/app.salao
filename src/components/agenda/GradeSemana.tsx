@@ -165,7 +165,10 @@ export default function GradeSemana({
                                     size="sm"
                                     variant="ghost"
                                     className="w-full"
-                                    disabled={Boolean(unico && (!unico.ativo || faixasUnico.length === 0))}
+                                    disabled={
+                                        dia.getTime() < hoje.getTime() ||
+                                        Boolean(unico && (!unico.ativo || faixasUnico.length === 0))
+                                    }
                                     onClick={() => {
                                         const prof = unico ?? profissionais.find((p) => p.ativo);
                                         if (!prof) return;
