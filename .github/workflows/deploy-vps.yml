@@ -35,6 +35,9 @@ jobs:
           VITE_APP_NOME_APP: Lyra
           VITE_APP_SIGLA_SISTEMA: LYR
           VITE_APP_SECRET_TOKEN_QR: ${{ secrets.FRONTEND_SECRET_TOKEN }}
+          VITE_SENTRY_DSN: https://f29007cf0735d1b5762eed30cfd018eb@o4512408706875392.ingest.us.sentry.io/4512408734269440
+          VITE_SENTRY_RELEASE: lyra-web@${{ github.sha }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Upload dist
         uses: appleboy/scp-action@v0.1.7

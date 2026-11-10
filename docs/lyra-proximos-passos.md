@@ -42,7 +42,8 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 
 **Qualidade**
 - [x] Testes de integração em `api.salao/tests/Lyra.Tests` (43 casos: conflito, expediente com pausa, preparo, bloqueio, status, remarcação, concorrência, permissões com token assinado, isolamento entre empresas e profissionais inativos). Cada execução cria um Postgres descartável; o GitHub Actions roda em todo push na `develop` e o deploy em `production` só segue se passarem.
-- [ ] Logs estruturados e alerta de erro (Sentry ou Seq) na API e no front.
+- [x] Erros, logs e alerta no Sentry (organização `lumen-6u`, projetos `lyra-api` e `lyra-web`). A API manda os 500 como issue e os logs do `ILogger` (Warning de negócio vira só breadcrumb); o front captura erros de tela, navegação e replay com texto mascarado. Nenhum dado de cliente sai (sem PII, corpo de requisição nem query string). Só liga com DSN: produção (compose e workflow) tem, local e testes não. Alerta: regra padrão "high priority issues" por e-mail em cada projeto.
+- [ ] Source maps do front no Sentry: criar um token de organização no Sentry e gravar como secret `SENTRY_AUTH_TOKEN` no repositório `app.salao`. Sem ele o build sai sem mapas e a pilha de erros do front vem minificada.
 - [ ] Validar com uma conta real no homolog: horários livres com pausa, preparo e bloqueio; configuração da empresa; perfil só com "Agendar".
 
 ---

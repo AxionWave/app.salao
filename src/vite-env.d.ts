@@ -13,6 +13,8 @@ interface ImportMetaEnv {
     readonly VITE_ASC_AMBIENTE?: string;
     readonly VITE_OAUTH_AMBIENTE?: string;
     readonly VITE_APP_SECRET_TOKEN_QR?: string;
+    readonly VITE_SENTRY_DSN?: string;
+    readonly VITE_SENTRY_RELEASE?: string;
 }
 
 interface ImportMeta {

@@ -32,6 +32,7 @@ O que mudou para quem usa:
 - Serviços mostram profissionais inativos ainda vinculados como "(inativo)" e avisam quando ninguém ativo atende.
 - A lista de perfis de acesso (`GET /api/salao/perfis-acesso`) exige o módulo Profissionais ou Configurações.
 - Remover bloqueio e excluir perfil pedem confirmação. Sair apaga os nomes personalizados guardados no navegador.
+- Erros da API e do front em produção vão para o Sentry (projetos `lyra-api` e `lyra-web`), que avisa por e-mail. Uma tela que quebra mostra "Algo deu errado nesta tela" com o botão Recarregar, em vez da página de erro do React Router.
 
 **A confirmar no Core:** se o Core também confere o token em `definir-senha-inicial` (R-05) e se substitui a lista de módulos ao salvar perfil (R-03). Também conferir se o `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`): a API aceita qualquer chave não vazia, e trocar exige mudar o oAuth junto.
 
