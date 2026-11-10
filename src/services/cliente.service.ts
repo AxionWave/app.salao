@@ -9,6 +9,9 @@ export interface Cliente {
     email: string | null;
     observacoes: string | null;
     ativo: boolean;
+    familiaId: number | null;
+    familiaNome: string | null;
+    parentesco: string | null;
     dataCriacao: string;
     dataAtualizacao: string | null;
 }
@@ -19,6 +22,10 @@ export interface SalvarCliente {
     email?: string | null;
     observacoes?: string | null;
     ativo: boolean;
+    parentesco?: string | null;
+    /** Entra na família desta ficha (a API cria a família se ela ainda não tiver). */
+    familiaDeClienteId?: number | null;
+    sairDaFamilia?: boolean;
 }
 
 export interface ListaClientes {
@@ -53,6 +60,16 @@ export const clienteService = {
 
     async atualizar(id: number, body: SalvarCliente): Promise<Cliente> {
         const { data } = await lyraClient.put<Cliente>(`${base}/${id}`, body);
+        return data;
+    },
+
+    async familia(id: number): Promise<Cliente[]> {
+        const { data } = await lyraClient.get<Cliente[]>(`${base}/${id}/familia`);
+        return data;
+    },
+
+    async mesmoContato(params: { telefone?: string; email?: string; ignorarId?: number }): Promise<Cliente[]> {
+        const { data } = await lyraClient.get<Cliente[]>(`${base}/mesmo-contato`, { params });
         return data;
     },
 

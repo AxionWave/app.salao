@@ -8,17 +8,26 @@ export type ClienteEscolhido = { id: number; nome: string };
 
 const ESPERA_DIGITACAO_MS = 250;
 
+const buscarNaAgenda = async (texto: string) => (await agendamentoService.buscarClientes(texto)).items;
+
 /** Busca no servidor por nome, telefone ou e-mail; escala para milhares de fichas. */
 export default function CampoCliente({
     label,
     valor,
     onChange,
     disabled,
+    obrigatorio = true,
+    buscar = buscarNaAgenda,
+    ocultar,
 }: {
     label: string;
     valor: ClienteEscolhido | null;
     onChange: (c: ClienteEscolhido | null) => void;
     disabled?: boolean;
+    obrigatorio?: boolean;
+    buscar?: (texto: string) => Promise<Cliente[]>;
+    /** Fichas que não podem ser escolhidas (ex.: a própria ficha em edição). */
+    ocultar?: (c: Cliente) => boolean;
 }) {
     const [texto, setTexto] = useState(valor?.nome ?? '');
     const [aberto, setAberto] = useState(false);
@@ -36,11 +45,10 @@ export default function CampoCliente({
         const atual = ++pedido.current;
         setCarregando(true);
         const timer = window.setTimeout(() => {
-            agendamentoService
-                .buscarClientes(texto === valor?.nome ? '' : texto)
+            buscar(texto === valor?.nome ? '' : texto)
                 .then((r) => {
                     if (atual !== pedido.current) return;
-                    setResultados(r.items);
+                    setResultados(ocultar ? r.filter((c) => !ocultar(c)) : r);
                     setErro('');
                 })
                 .catch((e) => {
@@ -53,6 +61,7 @@ export default function CampoCliente({
                 });
         }, ESPERA_DIGITACAO_MS);
         return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- buscar/ocultar costumam ser funções inline
     }, [aberto, texto, valor?.nome]);
 
     const escolher = (c: Cliente) => {
@@ -65,7 +74,7 @@ export default function CampoCliente({
         <div className="relative w-full">
             <label className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink)' }}>
                 {label}
-                <span style={{ color: 'var(--destructive)' }}> *</span>
+                {obrigatorio && <span style={{ color: 'var(--destructive)' }}> *</span>}
             </label>
             <input
                 className="lyra-input"
@@ -123,7 +132,15 @@ export default function CampoCliente({
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => escolher(c)}
                             >
-                                <span className="truncate">{c.nome}</span>
+                                <span className="min-w-0 truncate">
+                                    {c.nome}
+                                    {c.familiaNome && (
+                                        <span className="ml-1.5 text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
+                                            {c.parentesco ? `${c.parentesco} · ` : ''}
+                                            {c.familiaNome}
+                                        </span>
+                                    )}
+                                </span>
                                 <span className="shrink-0 font-mono text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
                                     {formatarTelefoneExibicao(c.telefone)}
                                 </span>

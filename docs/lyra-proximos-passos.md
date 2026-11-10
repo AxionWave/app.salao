@@ -27,11 +27,13 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 - [ ] A imagem Docker da API tem `tzdata` (R-25).
 
 **Agenda**
-- [ ] **R-17 — Trava contra dois agendamentos no mesmo horário** (`pg_advisory_xact_lock` por profissional ou constraint de exclusão). Obrigatório antes do portal.
-- [ ] R-10 desativar profissional com agendamentos futuros · R-14 cancelado cobrindo o horário · R-30 slot dentro do preparo · R-19 "não compareceu" ocupando horário · R-11 expediente que esconde agendamentos · R-31 ocupação sem descontar bloqueios.
+- [x] **R-17 — Trava contra dois agendamentos no mesmo horário.** `pg_advisory_xact_lock` por empresa e profissional ao criar, editar e remarcar. Testado com 10 pedidos simultâneos: só 1 grava.
+- [x] **Remarcar** (decisão para R-19): a equipe remarca agendamentos em aberto, faltas e cancelados. O original em aberto é cancelado com motivo "Remarcado" e o novo guarda `remarcadoDeId`. Cancelar pede um motivo opcional. A falta continua ocupando o horário.
+- [ ] R-10 desativar profissional com agendamentos futuros · R-14 cancelado cobrindo o horário · R-30 slot dentro do preparo · R-11 expediente que esconde agendamentos · R-31 ocupação sem descontar bloqueios.
 
 **Cadastros, sessão e acabamento**
-- [ ] R-22 serviço só com profissionais inativos · R-29 (perfis listados por qualquer usuário, confirmações de exclusão, telefone único) · R-23 cache de termos no logout · R-24 painel que não vira o dia · R-28 redirecionamento da sessão · R-26 fuso da empresa na grade.
+- [x] **Família (decisão para o telefone único de R-29):** fichas podem formar um grupo familiar com parentesco; telefone e e-mail só se repetem dentro da mesma família. Ao digitar um contato que já existe, a ficha oferece entrar na família.
+- [ ] R-22 serviço só com profissionais inativos · R-29 (perfis listados por qualquer usuário, confirmações de exclusão) · R-23 cache de termos no logout · R-24 painel que não vira o dia · R-28 redirecionamento da sessão · R-26 fuso da empresa na grade.
 
 **Qualidade**
 - [ ] Testes unitários do `AgendamentoService` (conflito, expediente, preparo, bloqueio, status) e um e2e de API contra um Postgres descartável, rodando no GitHub Actions antes do deploy.
@@ -108,7 +110,7 @@ O cliente entra, se cadastra e marca sozinho.
 - **Login sem senha:** o cliente informa o telefone ou o e-mail e recebe um código de 6 dígitos por WhatsApp ou e-mail (usa a Etapa 1). Mais simples para o público e sem senha para esquecer.
 - **Conta separada da equipe:** o cliente não é usuário do Core. Criar uma conta de cliente no próprio Lyra, com token próprio e escopo só do portal, ligada à ficha existente pelo telefone ou pelo e-mail. Assim um cliente nunca chega às rotas da equipe.
 - **Uma conta, várias empresas:** a mesma pessoa pode ser cliente de mais de uma empresa da Lumen; cada empresa vê só a sua ficha.
-- **Dependentes:** marcar para filho ou pai com o mesmo login (resolve o telefone único de R-29).
+- **Dependentes:** quem entra pelo telefone ou e-mail da família marca para qualquer membro dela (usa o grupo familiar que já existe).
 
 ### Agendamento online
 - [ ] Fluxo: serviço → profissional (ou "qualquer um") → dia → horário livre (usa a rota de horários livres que já existe) → confirmar.
@@ -117,7 +119,7 @@ O cliente entra, se cadastra e marca sozinho.
 - [ ] Proteção: limite de tentativas por IP e por telefone, captcha no cadastro e a trava de R-17.
 
 ### Área do cliente
-- [ ] Próximos agendamentos, com botões de cancelar, remarcar e adicionar à agenda.
+- [ ] Próximos agendamentos, com botões de cancelar (com motivo, dentro do prazo da empresa), remarcar (usa a mesma rota de remarcação da equipe) e adicionar à agenda.
 - [ ] Histórico, dados pessoais e preferências de notificação.
 - [ ] "Marcar de novo" com o mesmo serviço e profissional.
 

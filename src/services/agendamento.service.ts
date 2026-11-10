@@ -30,6 +30,9 @@ export interface Agendamento {
     dataAtualizacao: string | null;
     /** Preparo depois do atendimento; a agenda fica ocupada até fim + este tempo. */
     intervaloAposMinutos: number;
+    /** Agendamento que este substituiu ao remarcar. */
+    remarcadoDeId: number | null;
+    motivoCancelamento: string | null;
 }
 
 export interface SalvarAgendamento {
@@ -148,8 +151,14 @@ export const agendamentoService = {
         return data;
     },
 
-    async alterarStatus(id: number, status: string): Promise<Agendamento> {
-        const { data } = await lyraClient.patch<Agendamento>(`${base}/${id}/status`, { status });
+    async alterarStatus(id: number, status: string, motivo?: string | null): Promise<Agendamento> {
+        const { data } = await lyraClient.patch<Agendamento>(`${base}/${id}/status`, { status, motivo });
+        return data;
+    },
+
+    /** Novo horário para o mesmo cliente; o original em aberto é cancelado junto. */
+    async remarcar(id: number, body: SalvarAgendamento): Promise<Agendamento> {
+        const { data } = await lyraClient.post<Agendamento>(`${base}/${id}/remarcar`, body);
         return data;
     },
 };

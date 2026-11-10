@@ -45,6 +45,9 @@ import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const STATUS_REMARCAVEIS = ['agendado', 'confirmado', 'no_show', 'cancelado'];
+const formatarDiaHora = (iso: string) =>
+    new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 type Visao = 'dia' | 'semana';
 
@@ -119,6 +122,8 @@ export default function AgendaPage() {
     const [erroLista, setErroLista] = useState('');
     const [formAberto, setFormAberto] = useState(false);
     const [editando, setEditando] = useState<Agendamento | null>(null);
+    /** Agendamento de origem enquanto o formulário marca o novo horário. */
+    const [remarcando, setRemarcando] = useState<Agendamento | null>(null);
     const [form, setForm] = useState<FormAgenda>(formVazio);
     const [adicionarServicoId, setAdicionarServicoId] = useState('');
     const [formErro, setFormErro] = useState('');
@@ -184,6 +189,8 @@ export default function AgendaPage() {
     const diaDoForm = form.inicio.slice(0, 10);
     const servicoIdsChave = form.servicoIds.join(',');
     const encerradoForm = editando ? statusTerminal(editando.status) : false;
+    const ignorarNosLivres =
+        editando?.id ?? (remarcando && !statusTerminal(remarcando.status) ? remarcando.id : undefined);
     useEffect(() => {
         const profissionalId = Number(form.profissionalId);
         if (!formAberto || encerradoForm || !profissionalId || !servicoIdsChave || !/^\d{4}-\d{2}-\d{2}$/.test(diaDoForm)) {
@@ -197,7 +204,7 @@ export default function AgendaPage() {
                 data: diaDoForm,
                 servicoIds: servicoIdsChave.split(',').map(Number),
                 profissionalId,
-                ignorarAgendamentoId: editando?.id,
+                ignorarAgendamentoId: ignorarNosLivres,
             })
             .then((r) => {
                 if (!cancelado) setLivres(r.profissionais.find((p) => p.profissionalId === profissionalId)?.horarios ?? []);
@@ -211,10 +218,10 @@ export default function AgendaPage() {
         return () => {
             cancelado = true;
         };
-    }, [formAberto, encerradoForm, form.profissionalId, servicoIdsChave, diaDoForm, editando?.id]);
+    }, [formAberto, encerradoForm, form.profissionalId, servicoIdsChave, diaDoForm, ignorarNosLivres]);
 
     useEffect(() => {
-        if (!formAberto || editando) return;
+        if (!formAberto || editando || remarcando) return;
         let cancelado = false;
         agendamentoService
             .buscarClientes('', 1)
@@ -227,12 +234,20 @@ export default function AgendaPage() {
         return () => {
             cancelado = true;
         };
-    }, [formAberto, editando]);
+    }, [formAberto, editando, remarcando]);
 
     const fecharForm = () => {
         if (salvando || statusando) return;
         setFormAberto(false);
         setEditando(null);
+        setRemarcando(null);
+    };
+
+    const iniciarRemarcacao = () => {
+        if (!editando) return;
+        setRemarcando(editando);
+        setEditando(null);
+        setFormErro('');
     };
 
     const preencherForm = (patch: Partial<FormAgenda>) => {
@@ -249,6 +264,7 @@ export default function AgendaPage() {
             opcoes.profissionais.find((p) => !servico || atendeServicos([servico], p.id))?.id;
         const inicio = seed?.inicio ?? dataComMinutos(cloneDia(cursor), 9 * 60);
         setEditando(null);
+        setRemarcando(null);
         setAdicionarServicoId('');
         setForm({
             ...formVazio,
@@ -267,6 +283,7 @@ export default function AgendaPage() {
 
     const abrirDetalhe = (a: Agendamento) => {
         setEditando(a);
+        setRemarcando(null);
         setAdicionarServicoId('');
         setForm({
             clienteId: String(a.clienteId),
@@ -353,11 +370,14 @@ export default function AgendaPage() {
         try {
             if (editando) {
                 await agendamentoService.atualizar(editando.id, body);
+            } else if (remarcando) {
+                await agendamentoService.remarcar(remarcando.id, body);
             } else {
                 await agendamentoService.criar(body);
             }
             setFormAberto(false);
             setEditando(null);
+            setRemarcando(null);
             await carregar();
         } catch (e) {
             setFormErro(mensagemErroHttp(e));
@@ -368,7 +388,15 @@ export default function AgendaPage() {
 
     const mudarStatus = async (status: string) => {
         if (!editando) return;
-        if (statusTerminal(status)) {
+        let motivo: string | null = null;
+        if (status === 'cancelado') {
+            const resposta = window.prompt(
+                `Cancelar este ${termos.agendamento.singular.toLowerCase()}? Se quiser, escreva o motivo (opcional).`,
+                ''
+            );
+            if (resposta === null) return;
+            motivo = resposta.trim().slice(0, 200) || null;
+        } else if (statusTerminal(status)) {
             const ok = window.confirm(
                 `Marcar como "${labelStatus(status)}"? Depois disso não dá para alterar este ${termos.agendamento.singular.toLowerCase()}.`
             );
@@ -377,7 +405,7 @@ export default function AgendaPage() {
         setStatusando(status);
         setFormErro('');
         try {
-            const atualizado = await agendamentoService.alterarStatus(editando.id, status);
+            const atualizado = await agendamentoService.alterarStatus(editando.id, status, motivo);
             setEditando(atualizado);
             await carregar();
         } catch (e) {
@@ -390,6 +418,7 @@ export default function AgendaPage() {
     const partes = partesDia(cursor);
     const tituloPeriodo = visao === 'semana' ? formatarFaixaSemana(inicioDaSemana(cursor)) : partes.data;
     const encerrado = editando ? statusTerminal(editando.status) : false;
+    const podeRemarcar = Boolean(editando && STATUS_REMARCAVEIS.includes(editando.status));
     const podeSalvar = Boolean(payload()) && !encerrado;
     const servicosDoForm = form.servicoIds.map((id) => {
         const cat = opcoes.servicos.find((s) => s.id === id);
@@ -642,12 +671,16 @@ export default function AgendaPage() {
 
             <Modal
                 aberto={formAberto}
-                titulo={editando ? editando.clienteNome : termos.novo('agendamento')}
-                eyebrow={editando ? termos.agendamento.singular : 'Agenda'}
+                titulo={
+                    editando ? editando.clienteNome : remarcando ? `Remarcar ${remarcando.clienteNome}` : termos.novo('agendamento')
+                }
+                eyebrow={editando ? termos.agendamento.singular : remarcando ? 'Remarcação' : 'Agenda'}
                 subtitulo={
                     editando
                         ? `${formatarHora(editando.inicio)} – ${formatarHora(editando.fim)} · ${editando.profissionalNome}`
-                        : `${termos.cliente.singular}, ${termos.varios('servico')} e ${termos.um('recurso')}. ${termos.adj('servico', 'Vários')} ${termos.varios('servico')} em sequência; a duração é a soma.`
+                        : remarcando
+                          ? `Era ${formatarDiaHora(remarcando.inicio)} com ${remarcando.profissionalNome}. Escolha o novo horário.`
+                          : `${termos.cliente.singular}, ${termos.varios('servico')} e ${termos.um('recurso')}. ${termos.adj('servico', 'Vários')} ${termos.varios('servico')} em sequência; a duração é a soma.`
                 }
                 onClose={fecharForm}
                 largura="36rem"
@@ -658,7 +691,7 @@ export default function AgendaPage() {
                         </Button>
                         {!encerrado && (
                             <Button onClick={() => void salvar()} disabled={salvando || !podeSalvar}>
-                                {salvando ? 'Salvando…' : 'Salvar'}
+                                {salvando ? 'Salvando…' : remarcando ? 'Confirmar remarcação' : 'Salvar'}
                             </Button>
                         )}
                     </>
@@ -670,13 +703,33 @@ export default function AgendaPage() {
                         <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                             {rotuloServicos(editando)} · {brl.format(editando.preco)}
                         </span>
+                        {editando.remarcadoDeId && (
+                            <Badge variant="faint" size="sm">
+                                Remarcado
+                            </Badge>
+                        )}
+                        {editando.status === 'cancelado' && editando.motivoCancelamento && (
+                            <span className="w-full text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                Motivo: {editando.motivoCancelamento}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {remarcando && (
+                    <div className="mb-4">
+                        <Alert variant="warn" titulo="Como funciona">
+                            {statusTerminal(remarcando.status)
+                                ? `O registro anterior (${labelStatus(remarcando.status).toLowerCase()}) fica como está, e um novo horário é criado.`
+                                : 'Ao confirmar, o horário anterior é cancelado e o novo é criado.'}
+                        </Alert>
                     </div>
                 )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <CampoCliente
                         label={termos.cliente.singular}
-                        disabled={encerrado}
+                        disabled={encerrado || Boolean(remarcando)}
                         valor={form.clienteId ? { id: Number(form.clienteId), nome: form.clienteNome } : null}
                         onChange={(c) =>
                             preencherForm({ clienteId: c ? String(c.id) : '', clienteNome: c?.nome ?? '' })
@@ -879,12 +932,22 @@ export default function AgendaPage() {
                     </div>
                 )}
 
-                {editando && transicoesDe(editando.status, editando.inicio).length > 0 && (
+                {editando && (transicoesDe(editando.status, editando.inicio).length > 0 || podeRemarcar) && (
                     <div className="mt-5">
                         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--copper)' }}>
                             Status
                         </p>
                         <div className="flex flex-wrap gap-2">
+                            {podeRemarcar && (
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={Boolean(statusando) || salvando}
+                                    onClick={iniciarRemarcacao}
+                                >
+                                    Remarcar
+                                </Button>
+                            )}
                             {transicoesDe(editando.status, editando.inicio).map((t) => (
                                 <Button
                                     key={t.id}
@@ -902,7 +965,9 @@ export default function AgendaPage() {
 
                 {encerrado && (
                     <p className="mt-4 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        Agendamento encerrado. Não é possível alterar horário nem status.
+                        {podeRemarcar
+                            ? 'Agendamento encerrado. Para atender em outro horário, use Remarcar.'
+                            : 'Agendamento encerrado. Não é possível alterar horário nem status.'}
                     </p>
                 )}
 

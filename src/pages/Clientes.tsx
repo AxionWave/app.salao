@@ -7,6 +7,7 @@ import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import { formatarTelefoneExibicao, telefoneValido } from '@/lib/telefone';
 import { clienteService, type Cliente, type SalvarCliente } from '@/services/cliente.service';
 import { useTermos } from '@/contexts/TermosContext';
+import SecaoFamilia, { type EstadoFamilia } from '@/components/clientes/SecaoFamilia';
 
 const PAGE_SIZE = 10;
 
@@ -20,6 +21,8 @@ const vazio: SalvarCliente = {
     ativo: true,
 };
 
+const semFamilia: EstadoFamilia = { parentesco: '', entrarCom: null, sair: false };
+
 export default function ClientesPage() {
     const termos = useTermos();
     const [itens, setItens] = useState<Cliente[]>([]);
@@ -32,6 +35,7 @@ export default function ClientesPage() {
     const [formAberto, setFormAberto] = useState(false);
     const [editando, setEditando] = useState<Cliente | null>(null);
     const [form, setForm] = useState<SalvarCliente>(vazio);
+    const [familia, setFamilia] = useState<EstadoFamilia>(semFamilia);
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
 
@@ -77,6 +81,7 @@ export default function ClientesPage() {
     const abrirNovo = () => {
         setEditando(null);
         setForm({ ...vazio });
+        setFamilia(semFamilia);
         setFormErro('');
         setFormAberto(true);
     };
@@ -92,6 +97,7 @@ export default function ClientesPage() {
             observacoes: c.observacoes ?? '',
             ativo: c.ativo,
         });
+        setFamilia({ ...semFamilia, parentesco: c.parentesco ?? '' });
         setFormErro('');
         setFormAberto(true);
     };
@@ -109,6 +115,9 @@ export default function ClientesPage() {
             email: form.email?.trim() || null,
             observacoes: form.observacoes?.trim() || null,
             ativo: form.ativo,
+            parentesco: familia.sair ? null : familia.parentesco.trim() || null,
+            familiaDeClienteId: familia.entrarCom?.id ?? null,
+            sairDaFamilia: familia.sair && !familia.entrarCom,
         };
         try {
             if (editando) {
@@ -235,6 +244,12 @@ export default function ClientesPage() {
                                             <span className="font-medium" style={{ color: 'var(--ink)' }}>
                                                 {c.nome}
                                             </span>
+                                            {c.familiaNome ? (
+                                                <p className="mt-0.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                                    {c.parentesco ? `${c.parentesco} · ` : ''}
+                                                    {c.familiaNome}
+                                                </p>
+                                            ) : null}
                                             {c.observacoes ? (
                                                 <p className="mt-0.5 max-w-xs truncate text-xs" style={{ color: 'var(--muted-foreground)' }}>
                                                     {c.observacoes}
@@ -305,7 +320,7 @@ export default function ClientesPage() {
                 subtitulo={
                     editando
                         ? 'Altere contato ou observações. Ficha inativa continua editável.'
-                        : `Quem sua empresa atende. Telefone único por empresa.`
+                        : 'Quem sua empresa atende. Telefone e e-mail só se repetem dentro da mesma família.'
                 }
                 onClose={fecharForm}
                 rodape={
@@ -358,6 +373,13 @@ export default function ClientesPage() {
                         descricao="Inativos continuam na lista e podem ser editados."
                     />
                 </div>
+                <SecaoFamilia
+                    editando={editando}
+                    telefone={form.telefone}
+                    email={form.email ?? ''}
+                    valor={familia}
+                    onChange={setFamilia}
+                />
                 {formErro && (
                     <div className="mt-3">
                         <Alert titulo={tituloDeMensagem(formErro)}>{formErro}</Alert>
