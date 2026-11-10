@@ -65,7 +65,7 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 ### Como funciona por dentro
 
 ```
-Agenda (API) ──grava na mesma transação──▶ tabela notificacao_pendente (outbox)
+Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes (outbox)
                                                   │
                                     Worker em segundo plano (HostedService)
                                     ├── Painel ao vivo ...... SignalR (WebSocket)
@@ -94,10 +94,13 @@ Agenda (API) ──grava na mesma transação──▶ tabela notificacao_penden
 ### LGPD
 - [ ] Consentimento do cliente para receber WhatsApp e e-mail, guardado com data e origem.
 - [ ] Link de "não quero mais receber" em todas as mensagens; respeitar isso no worker.
-- [ ] Histórico de envios por cliente, visível na ficha.
+- [ ] Histórico de envios por cliente, visível na ficha. A API já existe (`GET /api/salao/clientes/{id}/notificacoes`); a aba na ficha vem com o e-mail.
 
 ### Entregas, em ordem
-1. [ ] Outbox, worker e histórico de envios.
+1. [x] Outbox, worker e histórico de envios.
+   - A tabela `lyra.notificacoes` é ao mesmo tempo a fila e o histórico. Uma linha por canal ligado, gravada no mesmo `SaveChanges` do agendamento, para os eventos criado, remarcado (inclusive ao editar o horário ou o profissional), cancelado e confirmado. Cada linha guarda o destino e os dados da mensagem (`dados`, em JSON, com a data no fuso da empresa).
+   - O worker roda a cada `Notificacoes:IntervaloSegundos` (10 s) e pega uma linha por vez com `FOR UPDATE SKIP LOCKED`, então várias instâncias da API não enviam em dobro. Se falhar, tenta de novo depois de 1 min, 5 min, 30 min, 2 h e 6 h; depois disso marca `falhou` e registra erro (vai para o Sentry).
+   - Canais implementam `ICanalNotificacao`. Só entra na fila o canal que está em `Notificacoes:Canais` **e** tem implementação registrada. Nesta entrega nenhum canal real existe, então nada é enfileirado em produção; o e-mail (entrega 3) é o primeiro.
 2. [ ] SignalR: grade e Início ao vivo e o sino de notificações no painel.
 3. [ ] E-mail: confirmação, remarcação, cancelamento, com `.ics` e link de confirmar.
 4. [ ] WhatsApp: modelos aprovados, envio, webhook dos botões.

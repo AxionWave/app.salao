@@ -34,6 +34,7 @@ O que mudou para quem usa:
 - Remover bloqueio e excluir perfil pedem confirmação. Sair apaga os nomes personalizados guardados no navegador.
 - Agenda, Início, bloqueios e avisos de impacto mostram e gravam os horários no fuso da empresa, mesmo quando o computador está em outro fuso. Uma linha discreta avisa quando os dois diferem.
 - Erros da API e do front em produção vão para o Sentry (projetos `lyra-api` e `lyra-web`), que avisa por e-mail. Uma tela que quebra mostra "Algo deu errado nesta tela" com o botão Recarregar, em vez da página de erro do React Router.
+- Base das notificações (sem efeito visível ainda): criar, remarcar, cancelar e confirmar agendamento gravam a mensagem numa fila (`lyra.notificacoes`) na mesma transação, e um worker envia com novas tentativas. Como nenhum canal real está ligado, nada é enfileirado em produção. O histórico por cliente sai em `GET /api/salao/clientes/{id}/notificacoes`.
 
 **A confirmar no Core:** se o Core também confere o token em `definir-senha-inicial` (R-05) e se substitui a lista de módulos ao salvar perfil (R-03). Também conferir se o `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`): a API aceita qualquer chave não vazia, e trocar exige mudar o oAuth junto.
 
