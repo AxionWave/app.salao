@@ -88,6 +88,7 @@ export default function BloqueioModal({
     const [carregando, setCarregando] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const [excluindo, setExcluindo] = useState<number | null>(null);
+    const [confirmarRemocao, setConfirmarRemocao] = useState<number | null>(null);
     const [erro, setErro] = useState('');
     const [aviso, setAviso] = useState('');
 
@@ -108,6 +109,7 @@ export default function BloqueioModal({
         setForm(formInicial(dia, profissionalId));
         setErro('');
         setAviso('');
+        setConfirmarRemocao(null);
         if (!selecionado) void carregarProximos();
     }, [aberto, dia, profissionalId, selecionado, carregarProximos]);
 
@@ -150,6 +152,7 @@ export default function BloqueioModal({
     };
 
     const excluir = async (b: Bloqueio) => {
+        setConfirmarRemocao(null);
         setExcluindo(b.id);
         setErro('');
         try {
@@ -182,18 +185,31 @@ export default function BloqueioModal({
                 onClose={fechar}
                 largura="28rem"
                 rodape={
-                    <>
-                        <Button variant="ghost" onClick={fechar} disabled={ocupado}>
-                            Fechar
-                        </Button>
-                        <Button variant="danger" onClick={() => void excluir(selecionado)} disabled={ocupado}>
-                            {excluindo ? 'Removendo…' : 'Remover bloqueio'}
-                        </Button>
-                    </>
+                    confirmarRemocao === selecionado.id ? (
+                        <>
+                            <Button variant="ghost" onClick={() => setConfirmarRemocao(null)} disabled={ocupado}>
+                                Não remover
+                            </Button>
+                            <Button variant="danger" onClick={() => void excluir(selecionado)} disabled={ocupado}>
+                                {excluindo ? 'Removendo…' : 'Sim, remover'}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="ghost" onClick={fechar} disabled={ocupado}>
+                                Fechar
+                            </Button>
+                            <Button variant="danger" onClick={() => setConfirmarRemocao(selecionado.id)} disabled={ocupado}>
+                                Remover bloqueio
+                            </Button>
+                        </>
+                    )
                 }
             >
                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    {`Enquanto o bloqueio existir, não é possível marcar ${termos.varios('agendamento')} neste período.`}
+                    {confirmarRemocao === selecionado.id
+                        ? 'Remover este bloqueio? O período volta a aceitar marcações.'
+                        : `Enquanto o bloqueio existir, não é possível marcar ${termos.varios('agendamento')} neste período.`}
                 </p>
                 {erro && (
                     <div className="mt-3">
@@ -341,14 +357,35 @@ export default function BloqueioModal({
                                         {b.profissionalNome ?? 'Empresa toda'} · {descreverPeriodo(b)}
                                     </p>
                                 </div>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled={ocupado}
-                                    onClick={() => void excluir(b)}
-                                >
-                                    {excluindo === b.id ? 'Removendo…' : 'Remover'}
-                                </Button>
+                                {confirmarRemocao === b.id ? (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            disabled={ocupado}
+                                            onClick={() => setConfirmarRemocao(null)}
+                                        >
+                                            Não
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="danger"
+                                            disabled={ocupado}
+                                            onClick={() => void excluir(b)}
+                                        >
+                                            Sim, remover
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={ocupado}
+                                        onClick={() => setConfirmarRemocao(b.id)}
+                                    >
+                                        {excluindo === b.id ? 'Removendo…' : 'Remover'}
+                                    </Button>
+                                )}
                             </div>
                         ))}
                     </div>

@@ -94,12 +94,20 @@ export default function ServicosPage() {
     const [categorias, setCategorias] = useState<string[]>([]);
     const [profissionais, setProfissionais] = useState<ProfissionalResumo[]>([]);
 
-    const nomeProfissional = (id: number) => profissionais.find((p) => p.id === id)?.nome ?? `#${id}`;
+    const nomeProfissional = (id: number) => {
+        const p = profissionais.find((x) => x.id === id);
+        if (!p) return `#${id}`;
+        return p.ativo ? p.nome : `${p.nome} (inativo)`;
+    };
     const resumoQuemAtende = (ids: number[]) => {
         if (ids.length === 0) return `${termos.adj('recurso', 'Todos')} ${termos.adj('recurso', 'os')} ${termos.varios('recurso')}`;
         if (ids.length <= 2) return ids.map(nomeProfissional).join(', ');
         return `${ids.length} ${termos.contagem('recurso', ids.length)}`;
     };
+    /** Vinculado só a inativos: o serviço não aparece para ninguém na agenda. */
+    const semQuemAtenda = (ids: number[]) =>
+        ids.length > 0 && !ids.some((id) => profissionais.find((p) => p.id === id)?.ativo);
+    const profissionaisAtivos = profissionais.filter((p) => p.ativo);
 
     const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -332,7 +340,16 @@ export default function ServicosPage() {
                                                 </span>
                                             )}
                                         </Table.Cell>
-                                        <Table.Cell>{resumoQuemAtende(s.profissionalIds ?? [])}</Table.Cell>
+                                        <Table.Cell>
+                                            {resumoQuemAtende(s.profissionalIds ?? [])}
+                                            {semQuemAtenda(s.profissionalIds ?? []) && (
+                                                <span className="mt-1 block">
+                                                    <Badge variant="warn" size="sm" className="whitespace-nowrap">
+                                                        {`Sem ${termos.varios('recurso')} ${termos.adj('recurso', 'ativos')}`}
+                                                    </Badge>
+                                                </span>
+                                            )}
+                                        </Table.Cell>
                                         <Table.Cell>{brl.format(s.preco)}</Table.Cell>
                                         <Table.Cell>
                                             <Badge variant={s.ativo ? 'ok' : 'faint'} size="sm">
@@ -501,7 +518,7 @@ export default function ServicosPage() {
                     <p className="mb-1.5 text-sm font-medium" style={{ color: 'var(--ink)' }}>
                         Quem atende
                     </p>
-                    {profissionais.length === 0 ? (
+                    {profissionaisAtivos.length === 0 && form.profissionalIds.length === 0 ? (
                         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                             {`${termos.nenhum('recurso')} ${termos.adj('recurso', 'ativo')} ainda.`}
                         </p>
@@ -517,6 +534,7 @@ export default function ServicosPage() {
                                 </Button>
                                 {profissionais.map((p) => {
                                     const marcado = form.profissionalIds.includes(p.id);
+                                    if (!p.ativo && !marcado) return null;
                                     return (
                                         <Button
                                             key={p.id}
@@ -532,7 +550,7 @@ export default function ServicosPage() {
                                                 }))
                                             }
                                         >
-                                            {p.nome}
+                                            {p.ativo ? p.nome : `${p.nome} (inativo)`}
                                         </Button>
                                     );
                                 })}
@@ -540,8 +558,15 @@ export default function ServicosPage() {
                             <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>
                                 {form.profissionalIds.length === 0
                                     ? `Qualquer ${termos.recurso.singular.toLowerCase()} pode atender.`
-                                    : `Só ${termos.adj('recurso', 'os')} ${termos.adj('recurso', 'marcados')} aparecem na agenda para este ${termos.servico.singular.toLowerCase()}.`}
+                                    : `Só ${termos.adj('recurso', 'os')} ${termos.adj('recurso', 'marcados')} aparecem na agenda para ${termos.servico.genero === 'f' ? 'esta' : 'este'} ${termos.um('servico')}.`}
                             </p>
+                            {semQuemAtenda(form.profissionalIds) && (
+                                <div className="mt-3">
+                                    <Alert titulo={`${termos.nenhum('recurso')} ${termos.adj('recurso', 'ativo')}`} variant="warn">
+                                        {`Ninguém consegue agendar ${termos.servico.genero === 'f' ? 'esta' : 'este'} ${termos.um('servico')}. Marque ${termos.adj('recurso', 'outro')} ${termos.um('recurso')} ou escolha "${termos.adj('recurso', 'Todos')}".`}
+                                    </Alert>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

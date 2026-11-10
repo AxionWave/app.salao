@@ -30,6 +30,8 @@ export interface ProfissionalResumo {
     id: number;
     nome: string;
     cor: string;
+    /** Inativos só vêm quando ainda estão ligados a algum serviço. */
+    ativo: boolean;
 }
 
 export interface ListaServicos {

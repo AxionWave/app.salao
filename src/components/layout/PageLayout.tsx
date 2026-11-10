@@ -5,7 +5,7 @@ import { MODULOS } from '@/constants/moduleCodes';
 import AppSidebar from './AppSidebar';
 import GlobalHeader from './GlobalHeader';
 import { Button } from '@/components/ui';
-import { useTermos } from '@/contexts/TermosContext';
+import { useConfiguracaoEmpresa, useTermos } from '@/contexts/TermosContext';
 
 export default function PageLayout({
     children,
@@ -22,10 +22,12 @@ export default function PageLayout({
 }) {
     const navigate = useNavigate();
     const termos = useTermos();
+    const { limpar: limparTermos } = useConfiguracaoEmpresa();
     const userInfo = authService.getStoredUserInfo();
 
     const onLogout = () => {
         authService.logout();
+        limparTermos();
         navigate('/login', { replace: true });
     };
 

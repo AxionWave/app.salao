@@ -54,7 +54,27 @@ export default function InicioPage() {
     const termos = useTermos();
     const temAgenda = authService.hasModulo(MODULO_AGENDA);
     const nome = saudacaoNome();
-    const hoje = useMemo(() => cloneDia(new Date()), []);
+    const [agora, setAgora] = useState(() => Date.now());
+    const [hoje, setHoje] = useState(() => cloneDia(new Date()));
+    useEffect(() => {
+        // A tela costuma ficar aberta o dia todo (e de um dia para o outro) na recepção.
+        const atualizar = () => {
+            const d = new Date();
+            setAgora(d.getTime());
+            setHoje((h) => (h.getTime() === cloneDia(d).getTime() ? h : cloneDia(d)));
+        };
+        const aoVoltar = () => {
+            if (document.visibilityState === 'visible') atualizar();
+        };
+        const timer = window.setInterval(atualizar, 60_000);
+        window.addEventListener('focus', atualizar);
+        document.addEventListener('visibilitychange', aoVoltar);
+        return () => {
+            window.clearInterval(timer);
+            window.removeEventListener('focus', atualizar);
+            document.removeEventListener('visibilitychange', aoVoltar);
+        };
+    }, []);
     const partes = partesDia(hoje);
     const [visaoCal, setVisaoCal] = useState<'semana' | 'mes'>('mes');
     const [cursor, setCursor] = useState(() => cloneDia(new Date()));
@@ -140,7 +160,7 @@ export default function InicioPage() {
     );
     const ativosHoje = deHoje.filter((a) => ocupaHorario(a.status));
     const proximos = ativosHoje
-        .filter((a) => new Date(a.inicio).getTime() >= Date.now() - 5 * 60 * 1000)
+        .filter((a) => new Date(a.inicio).getTime() >= agora - 5 * 60 * 1000)
         .sort((a, b) => a.inicio.localeCompare(b.inicio))
         .slice(0, 5);
     const aConfirmar = deHoje.filter((a) => a.status === 'agendado').length;

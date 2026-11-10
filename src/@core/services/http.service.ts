@@ -67,7 +67,7 @@ function attachAuth(client: AxiosInstance): AxiosInstance {
                 return client(original);
             } catch (refreshErr) {
                 clearAuthSessionStorage();
-                window.location.href = '/login';
+                window.location.href = `${import.meta.env.BASE_URL}login`;
                 return Promise.reject(refreshErr);
             }
         }

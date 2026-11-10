@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { authService } from '@core/services';
@@ -18,17 +18,18 @@ const ALERTA_SEM_ACESSO: AlertaLogin = {
 
 export default function LoginPage() {
     const navigate = useNavigate();
-    const { recarregar: recarregarTermos } = useConfiguracaoEmpresa();
+    const { recarregar: recarregarTermos, limpar: limparTermos } = useConfiguracaoEmpresa();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [alerta, setAlerta] = useState<AlertaLogin | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const recusarSemAcesso = () => {
+    const recusarSemAcesso = useCallback(() => {
         authService.logout();
+        limparTermos();
         setAlerta(ALERTA_SEM_ACESSO);
-    };
+    }, [limparTermos]);
 
     useEffect(() => {
         if (authService.isAuthenticated() && authService.needsPasswordChange()) {
@@ -42,7 +43,7 @@ export default function LoginPage() {
         if (authService.isAuthenticated()) {
             recusarSemAcesso();
         }
-    }, [navigate]);
+    }, [navigate, recusarSemAcesso]);
 
     const onSubmit = async (e: FormEvent) => {
         e.preventDefault();

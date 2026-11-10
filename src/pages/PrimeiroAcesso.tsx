@@ -5,6 +5,7 @@ import { APP_CONFIG } from '@core/config';
 import { Alert, Button } from '@/components/ui';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { mensagemErroHttp } from '@/exceptions';
+import { useConfiguracaoEmpresa } from '@/contexts/TermosContext';
 
 function CampoSenha({
     id,
@@ -55,6 +56,7 @@ function CampoSenha({
 
 export default function PrimeiroAcessoPage() {
     const navigate = useNavigate();
+    const { recarregar: recarregarTermos, limpar: limparTermos } = useConfiguracaoEmpresa();
     const user = authService.getStoredUserInfo();
     // Só o e-mail da sessão: aceitar o da URL deixaria qualquer um definir a senha de outra conta.
     const email = (user?.email || '').trim();
@@ -73,6 +75,7 @@ export default function PrimeiroAcessoPage() {
 
     const sair = () => {
         authService.logout();
+        limparTermos();
         navigate('/login', { replace: true });
     };
 
@@ -101,6 +104,7 @@ export default function PrimeiroAcessoPage() {
             } catch {
                 /* senha já definida; sessão anterior segue válida */
             }
+            void recarregarTermos();
             navigate('/inicio', { replace: true });
         } catch (err) {
             setErro(mensagemErroHttp(err, 'Não foi possível definir a senha. Tente novamente.'));

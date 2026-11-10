@@ -36,6 +36,7 @@ export default function ConfiguracoesPage() {
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
     const [apagandoId, setApagandoId] = useState<number | null>(null);
+    const [excluindo, setExcluindo] = useState<PerfilLyraCompleto | null>(null);
 
     const carregar = useCallback(async () => {
         if (!empresaId) {
@@ -133,8 +134,10 @@ export default function ConfiguracoesPage() {
         setErroLista('');
         try {
             await perfilAcessoService.desativar(p.id);
+            setExcluindo(null);
             await carregar();
         } catch (e) {
+            setExcluindo(null);
             setErroLista(mensagemErroHttp(e));
         } finally {
             setApagandoId(null);
@@ -234,7 +237,7 @@ export default function ConfiguracoesPage() {
                                                         size="sm"
                                                         variant="ghost"
                                                         disabled={apagandoId === p.id}
-                                                        onClick={() => void excluir(p)}
+                                                        onClick={() => setExcluindo(p)}
                                                     >
                                                         Excluir
                                                     </Button>
@@ -249,6 +252,33 @@ export default function ConfiguracoesPage() {
                 )}
             </PageCard>
             </div>
+
+            <Modal
+                aberto={excluindo !== null}
+                titulo={excluindo ? `Excluir o perfil ${excluindo.nome}?` : ''}
+                eyebrow="Permissões Lyra"
+                onClose={() => apagandoId === null && setExcluindo(null)}
+                largura="28rem"
+                rodape={
+                    <>
+                        <Button variant="ghost" onClick={() => setExcluindo(null)} disabled={apagandoId !== null}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={() => excluindo && void excluir(excluindo)}
+                            disabled={apagandoId !== null}
+                        >
+                            {apagandoId !== null ? 'Excluindo…' : 'Excluir'}
+                        </Button>
+                    </>
+                }
+            >
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    O perfil deixa de aparecer para escolha. Antes, confira se ninguém da equipe ainda usa este
+                    perfil.
+                </p>
+            </Modal>
 
             <Modal
                 aberto={formAberto}

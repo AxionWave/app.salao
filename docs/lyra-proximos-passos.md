@@ -37,7 +37,8 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 
 **Cadastros, sessão e acabamento**
 - [x] **Família (decisão para o telefone único de R-29):** fichas podem formar um grupo familiar com parentesco; telefone e e-mail só se repetem dentro da mesma família. Ao digitar um contato que já existe, a ficha oferece entrar na família.
-- [ ] R-22 serviço só com profissionais inativos · R-29 (perfis listados por qualquer usuário, confirmações de exclusão) · R-23 cache de termos no logout · R-24 painel que não vira o dia · R-28 redirecionamento da sessão · R-26 fuso da empresa na grade.
+- [x] R-22 serviço só com profissionais inativos (a lista mostra "(inativo)" e avisa quando ninguém ativo atende) · R-29 (perfis só para quem tem Profissionais ou Configurações; remover bloqueio e excluir perfil pedem confirmação) · R-23 termos limpos ao sair e recarregados no primeiro acesso · R-24 Início vira o dia sozinho (a cada minuto e ao voltar para a aba) · R-28 redirecionamento da sessão respeita o subcaminho do app.
+- [ ] R-26 fuso da empresa na grade.
 
 **Qualidade**
 - [ ] Testes unitários do `AgendamentoService` (conflito, expediente, preparo, bloqueio, status) e um e2e de API contra um Postgres descartável, rodando no GitHub Actions antes do deploy.

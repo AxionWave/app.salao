@@ -40,9 +40,12 @@ interface TermosContextValue {
     configuracao: ConfiguracaoEmpresa | null;
     recarregar: () => Promise<void>;
     aplicar: (config: ConfiguracaoEmpresa) => void;
+    /** Ao sair: o próximo login pode ser de outra empresa, com outros termos. */
+    limpar: () => void;
 }
 
 function lerCache(): Terminologia | null {
+    if (!authService.isAuthenticated()) return null;
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         return raw ? (JSON.parse(raw) as Terminologia) : null;
@@ -96,13 +99,23 @@ export function TermosProvider({ children }: { children: ReactNode }) {
         }
     }, [aplicar]);
 
+    const limpar = useCallback(() => {
+        setConfiguracao(null);
+        setTerminologia(TERMINOLOGIA_PADRAO);
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            /* storage bloqueado: nada a limpar */
+        }
+    }, []);
+
     useEffect(() => {
         void recarregar();
     }, [recarregar]);
 
     const value = useMemo<TermosContextValue>(
-        () => ({ termos: montar(terminologia), configuracao, recarregar, aplicar }),
-        [terminologia, configuracao, recarregar, aplicar]
+        () => ({ termos: montar(terminologia), configuracao, recarregar, aplicar, limpar }),
+        [terminologia, configuracao, recarregar, aplicar, limpar]
     );
 
     return <TermosContext.Provider value={value}>{children}</TermosContext.Provider>;
