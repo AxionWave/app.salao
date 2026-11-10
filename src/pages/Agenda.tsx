@@ -18,7 +18,6 @@ import {
     formatarDuracaoMinutos,
     formatarFaixaSemana,
     formatarHora,
-    fusoDiferenteDoNavegador,
     inicioDaSemana,
     labelStatus,
     minutosNoDia,
@@ -31,6 +30,7 @@ import {
     transicoesDe,
     varianteStatus,
 } from '@/lib/agenda';
+import { fusoAtual, hojeNaEmpresa, instante, navegadorEmOutroFuso, relogio } from '@/lib/fuso';
 import { formatarTelefoneExibicao } from '@/lib/telefone';
 import { MODULO_CLIENTES, MODULO_PROFISSIONAIS, MODULO_SERVICOS } from '@/constants/moduleCodes';
 import {
@@ -43,12 +43,12 @@ import {
     rotuloServicos,
 } from '@/services/agendamento.service';
 import { bloqueiaProfissional, bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
-import { useTermos } from '@/contexts/TermosContext';
+import { useConfiguracaoEmpresa, useTermos } from '@/contexts/TermosContext';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const STATUS_REMARCAVEIS = ['agendado', 'confirmado', 'no_show', 'cancelado'];
 const formatarDiaHora = (iso: string) =>
-    new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    relogio(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 type Visao = 'dia' | 'semana';
 
@@ -103,12 +103,13 @@ function CampoSelect({
 
 export default function AgendaPage() {
     const termos = useTermos();
+    const fuso = useConfiguracaoEmpresa().configuracao?.fusoHorario;
     const [searchParams, setSearchParams] = useSearchParams();
     const queryConsumida = useRef(false);
     const [visao, setVisao] = useState<Visao>(() =>
         searchParams.get('visao') === 'semana' ? 'semana' : 'dia'
     );
-    const [cursor, setCursor] = useState(() => parseIsoData(searchParams.get('data')) ?? cloneDia(new Date()));
+    const [cursor, setCursor] = useState(() => parseIsoData(searchParams.get('data')) ?? hojeNaEmpresa());
     const [filtroProf, setFiltroProf] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
     const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [], fusoHorario: '' });
@@ -159,15 +160,15 @@ export default function AgendaPage() {
             const [ops, lista, blq] = await Promise.all([
                 agendamentoService.opcoes(),
                 agendamentoService.listar({
-                    de: periodo.de.toISOString(),
-                    ate: periodo.ate.toISOString(),
+                    de: instante(periodo.de).toISOString(),
+                    ate: instante(periodo.ate).toISOString(),
                     profissionalId: filtroProf ? Number(filtroProf) : undefined,
                     status: filtroStatus || undefined,
                 }),
                 bloqueioService
                     .listar({
-                        de: periodo.de.toISOString(),
-                        ate: periodo.ate.toISOString(),
+                        de: instante(periodo.de).toISOString(),
+                        ate: instante(periodo.ate).toISOString(),
                         profissionalId: filtroProf ? Number(filtroProf) : undefined,
                     })
                     .catch(() => [] as Bloqueio[]),
@@ -182,7 +183,9 @@ export default function AgendaPage() {
         } finally {
             setCarregando(false);
         }
-    }, [periodo.de, periodo.ate, filtroProf, filtroStatus]);
+        // O período é convertido pelo fuso da empresa, que pode chegar depois da primeira carga.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [periodo.de, periodo.ate, filtroProf, filtroStatus, fuso]);
 
     useEffect(() => {
         void carregar();
@@ -292,7 +295,7 @@ export default function AgendaPage() {
             clienteNome: a.clienteNome,
             servicoIds: a.servicos?.length ? a.servicos.map((s) => s.id) : [],
             profissionalId: String(a.profissionalId),
-            inicio: paraDatetimeLocal(new Date(a.inicio)),
+            inicio: paraDatetimeLocal(relogio(a.inicio)),
             observacoes: a.observacoes ?? '',
         });
         setFormErro('');
@@ -323,7 +326,7 @@ export default function AgendaPage() {
         if (visaoParam === 'dia' || visaoParam === 'semana') setVisao(visaoParam);
         if (dataParam) setCursor(dataParam);
         else if (inicioParam) {
-            const inicio = new Date(inicioParam);
+            const inicio = relogio(inicioParam);
             if (!Number.isNaN(inicio.getTime())) setCursor(cloneDia(inicio));
         }
         if (profParam && opcoes.profissionais.some((p) => String(p.id) === profParam)) {
@@ -333,7 +336,7 @@ export default function AgendaPage() {
             const item = itens.find((a) => a.id === Number(idRaw));
             if (item) abrirDetalhe(item);
         } else if (novo) {
-            const inicio = inicioParam ? new Date(inicioParam) : undefined;
+            const inicio = inicioParam ? relogio(inicioParam) : undefined;
             abrirNovo({
                 profissionalId: profParam ? Number(profParam) : undefined,
                 inicio: inicio && !Number.isNaN(inicio.getTime()) ? inicio : undefined,
@@ -354,7 +357,7 @@ export default function AgendaPage() {
             clienteId,
             servicoIds: form.servicoIds,
             profissionalId,
-            inicio: inicio.toISOString(),
+            inicio: instante(inicio).toISOString(),
             observacoes: form.observacoes.trim() || null,
         };
     };
@@ -494,7 +497,7 @@ export default function AgendaPage() {
                                     >
                                         <Seta dir="esq" />
                                     </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setCursor(cloneDia(new Date()))}>
+                                    <Button size="sm" variant="ghost" onClick={() => setCursor(hojeNaEmpresa())}>
                                         Hoje
                                     </Button>
                                     <Button
@@ -602,12 +605,10 @@ export default function AgendaPage() {
                             </div>
                         )}
 
-                        {fusoDiferenteDoNavegador(opcoes.fusoHorario) && (
-                            <div className="mb-4">
-                                <Alert titulo="Fuso horário diferente" variant="warn">
-                                    {`Este computador está num fuso diferente do da empresa (${opcoes.fusoHorario}). A grade mostra o horário deste computador; o expediente e os horários livres seguem o fuso da empresa.`}
-                                </Alert>
-                            </div>
+                        {navegadorEmOutroFuso() && (
+                            <p className="mb-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                                {`Horários no fuso da empresa (${fusoAtual()}), diferente do deste computador.`}
+                            </p>
                         )}
 
                         {carregando && (
@@ -784,7 +785,7 @@ export default function AgendaPage() {
                         {livres.length > 0 && (
                             <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
                                 {livres.map((h) => {
-                                    const valor = paraDatetimeLocal(new Date(h.inicio));
+                                    const valor = paraDatetimeLocal(relogio(h.inicio));
                                     const ativo = valor === form.inicio;
                                     return (
                                         <button

@@ -23,6 +23,8 @@ import {
     type SalvarProfissional,
 } from '@/services/profissional.service';
 import AvisoImpacto from '@/components/profissionais/AvisoImpacto';
+import { isoData } from '@/lib/agenda';
+import { hojeNaEmpresa } from '@/lib/fuso';
 import { useTermos } from '@/contexts/TermosContext';
 
 const PAGE_SIZE = 10;
@@ -406,7 +408,7 @@ export default function ProfissionaisPage() {
 
     const de = total === 0 ? 0 : (pagina - 1) * PAGE_SIZE + 1;
     const ate = Math.min(pagina * PAGE_SIZE, total);
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = isoData(hojeNaEmpresa());
 
     return (
         <PageLayout

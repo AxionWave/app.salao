@@ -7,8 +7,10 @@ import {
     type Terminologia,
     type Termo,
 } from '@/services/configuracao.service';
+import { definirFuso } from '@/lib/fuso';
 
 const STORAGE_KEY = 'lyra-terminologia';
+const STORAGE_FUSO = 'lyra-fuso';
 
 /** Igual ao segmento "beleza" da API: é o que a empresa vê enquanto não configurou nada. */
 export const TERMINOLOGIA_PADRAO: Terminologia = {
@@ -54,6 +56,18 @@ function lerCache(): Terminologia | null {
     }
 }
 
+function lerFusoCache(): string | null {
+    if (!authService.isAuthenticated()) return null;
+    try {
+        return localStorage.getItem(STORAGE_FUSO);
+    } catch {
+        return null;
+    }
+}
+
+// Antes da primeira tela: a agenda já abre no fuso da empresa, sem esperar a API.
+definirFuso(lerFusoCache());
+
 function montar(t: Terminologia): Termos {
     const minus = (s: string) => s.toLocaleLowerCase('pt-BR');
     const termo = (c: ChaveTermo): Termo => t[c];
@@ -81,10 +95,12 @@ export function TermosProvider({ children }: { children: ReactNode }) {
     const [configuracao, setConfiguracao] = useState<ConfiguracaoEmpresa | null>(null);
 
     const aplicar = useCallback((config: ConfiguracaoEmpresa) => {
+        definirFuso(config.fusoHorario);
         setConfiguracao(config);
         setTerminologia(config.terminologia);
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(config.terminologia));
+            localStorage.setItem(STORAGE_FUSO, config.fusoHorario);
         } catch {
             /* storage cheio ou bloqueado: segue com o estado em memória */
         }
@@ -100,10 +116,12 @@ export function TermosProvider({ children }: { children: ReactNode }) {
     }, [aplicar]);
 
     const limpar = useCallback(() => {
+        definirFuso(null);
         setConfiguracao(null);
         setTerminologia(TERMINOLOGIA_PADRAO);
         try {
             localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(STORAGE_FUSO);
         } catch {
             /* storage bloqueado: nada a limpar */
         }

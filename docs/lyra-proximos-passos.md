@@ -38,7 +38,7 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 **Cadastros, sessão e acabamento**
 - [x] **Família (decisão para o telefone único de R-29):** fichas podem formar um grupo familiar com parentesco; telefone e e-mail só se repetem dentro da mesma família. Ao digitar um contato que já existe, a ficha oferece entrar na família.
 - [x] R-22 serviço só com profissionais inativos (a lista mostra "(inativo)" e avisa quando ninguém ativo atende) · R-29 (perfis só para quem tem Profissionais ou Configurações; remover bloqueio e excluir perfil pedem confirmação) · R-23 termos limpos ao sair e recarregados no primeiro acesso · R-24 Início vira o dia sozinho (a cada minuto e ao voltar para a aba) · R-28 redirecionamento da sessão respeita o subcaminho do app.
-- [ ] R-26 fuso da empresa na grade.
+- [x] **R-26 — Fuso da empresa na grade:** as telas trabalham no relógio da empresa (`lib/fuso.ts`) e só convertem para UTC ao falar com a API. Testado com a empresa em Manaus e o computador em Brasília: o horário das 08:00 aparece às 08:00 e um clique às 10:00 grava 14:00 UTC.
 
 **Qualidade**
 - [x] Testes de integração em `api.salao/tests/Lyra.Tests` (43 casos: conflito, expediente com pausa, preparo, bloqueio, status, remarcação, concorrência, permissões com token assinado, isolamento entre empresas e profissionais inativos). Cada execução cria um Postgres descartável; o GitHub Actions roda em todo push na `develop` e o deploy em `production` só segue se passarem.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Input, Modal, Switch } from '@/components/ui';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import { adicionarDias, cloneDia, deDatetimeLocal, isoData, paraDatetimeLocal, parseIsoData } from '@/lib/agenda';
+import { hojeNaEmpresa, instante, relogio } from '@/lib/fuso';
 import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
 import type { ProfissionalAgenda } from '@/services/agendamento.service';
 import { useTermos } from '@/contexts/TermosContext';
@@ -47,8 +48,8 @@ function periodoDoForm(f: Form): { inicio: Date; fim: Date } | null {
 }
 
 export function descreverPeriodo(b: Pick<Bloqueio, 'inicio' | 'fim'>): string {
-    const ini = new Date(b.inicio);
-    const fim = new Date(b.fim);
+    const ini = relogio(b.inicio);
+    const fim = relogio(b.fim);
     const data = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
     const hora = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const meiaNoite = (d: Date) => d.getHours() === 0 && d.getMinutes() === 0;
@@ -95,8 +96,13 @@ export default function BloqueioModal({
     const carregarProximos = useCallback(async () => {
         setCarregando(true);
         try {
-            const de = cloneDia(new Date());
-            setProximos(await bloqueioService.listar({ de: de.toISOString(), ate: adicionarDias(de, 120).toISOString() }));
+            const de = hojeNaEmpresa();
+            setProximos(
+                await bloqueioService.listar({
+                    de: instante(de).toISOString(),
+                    ate: instante(adicionarDias(de, 120)).toISOString(),
+                })
+            );
         } catch (e) {
             setErro(mensagemErroHttp(e));
         } finally {
@@ -129,8 +135,8 @@ export default function BloqueioModal({
         try {
             const r = await bloqueioService.criar({
                 profissionalId: form.profissionalId ? Number(form.profissionalId) : null,
-                inicio: periodo.inicio.toISOString(),
-                fim: periodo.fim.toISOString(),
+                inicio: instante(periodo.inicio).toISOString(),
+                fim: instante(periodo.fim).toISOString(),
                 motivo: form.motivo.trim() || null,
             });
             onAlterado();

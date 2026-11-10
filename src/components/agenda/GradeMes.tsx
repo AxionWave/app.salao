@@ -1,10 +1,11 @@
 import {
-    cloneDia,
     corToken,
+    faixaNoDia,
     formatarHora,
     mesmoDia,
     ocupaHorario,
 } from '@/lib/agenda';
+import { hojeNaEmpresa } from '@/lib/fuso';
 import { type Agendamento } from '@/services/agendamento.service';
 import { type Bloqueio } from '@/services/bloqueio.service';
 
@@ -23,7 +24,7 @@ export default function GradeMes({
     bloqueios?: Bloqueio[];
     onDia: (dia: Date) => void;
 }) {
-    const hoje = cloneDia(new Date());
+    const hoje = hojeNaEmpresa();
     const mesRef = mes.getMonth();
     const anoRef = mes.getFullYear();
 
@@ -49,10 +50,7 @@ export default function GradeMes({
                         .sort((a, b) => a.inicio.localeCompare(b.inicio));
                     const ativos = doDia.filter((a) => ocupaHorario(a.status));
                     const preview = ativos.slice(0, 2);
-                    const fimDia = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate() + 1);
-                    const bloqueio = bloqueios.find(
-                        (b) => new Date(b.inicio) < fimDia && new Date(b.fim) > dia
-                    );
+                    const bloqueio = bloqueios.find((b) => faixaNoDia(b, dia) !== null);
                     return (
                         <button
                             key={dia.toISOString()}

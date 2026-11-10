@@ -1,4 +1,5 @@
 import type { IntervaloAgenda, ProfissionalAgenda } from '@/services/agendamento.service';
+import { instante, relogio } from './fuso';
 
 export const SLOT_MIN = 30;
 export const ROW_PX = 52;
@@ -45,7 +46,7 @@ export function hhmmParaMinutos(hhmm: string): number {
 }
 
 export function minutosDoInstante(iso: string): number {
-    const d = new Date(iso);
+    const d = relogio(iso);
     return d.getHours() * 60 + d.getMinutes();
 }
 
@@ -56,7 +57,7 @@ export function dataComMinutos(dia: Date, minutos: number): Date {
 }
 
 export function formatarHora(iso: string): string {
-    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return relogio(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatarMinutos(min: number): string {
@@ -142,7 +143,7 @@ export function celulasDoMes(d: Date): Date[] {
 }
 
 export function mesmoDia(iso: string, dia: Date): boolean {
-    const d = new Date(iso);
+    const d = relogio(iso);
     return d.getFullYear() === dia.getFullYear() && d.getMonth() === dia.getMonth() && d.getDate() === dia.getDate();
 }
 
@@ -195,8 +196,8 @@ export function resumoFaixas(faixas: Faixa[]): string {
 
 /** Parte de um período (ISO) que cai dentro do dia, em minutos; null se não toca o dia. */
 export function faixaNoDia(periodo: { inicio: string; fim: string }, dia: Date): Faixa | null {
-    const d0 = cloneDia(dia).getTime();
-    const d1 = adicionarDias(dia, 1).getTime();
+    const d0 = instante(cloneDia(dia)).getTime();
+    const d1 = instante(adicionarDias(dia, 1)).getTime();
     const ini = new Date(periodo.inicio).getTime();
     const fim = new Date(periodo.fim).getTime();
     if (fim <= d0 || ini >= d1) return null;
@@ -226,32 +227,6 @@ export function limitesGrade(
     }
     if (max <= min) return { inicio: 8 * 60, fim: 20 * 60 };
     return { inicio: min, fim: max };
-}
-
-function deslocamentoMinutos(timeZone: string, d: Date): number | null {
-    try {
-        const partes = new Intl.DateTimeFormat('en-US', {
-            timeZone,
-            hourCycle: 'h23',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).formatToParts(d);
-        const v = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value);
-        const comoUtc = Date.UTC(v('year'), v('month') - 1, v('day'), v('hour'), v('minute'));
-        return Math.round((comoUtc - Math.floor(d.getTime() / 60000) * 60000) / 60000);
-    } catch {
-        return null;
-    }
-}
-
-/** A grade usa o relógio do navegador; avisa quando ele está num fuso diferente do da empresa. */
-export function fusoDiferenteDoNavegador(fusoEmpresa: string | undefined, agora = new Date()): boolean {
-    if (!fusoEmpresa) return false;
-    const empresa = deslocamentoMinutos(fusoEmpresa, agora);
-    return empresa !== null && empresa !== -agora.getTimezoneOffset();
 }
 
 export function gerarSlots(inicio: number, fim: number): number[] {

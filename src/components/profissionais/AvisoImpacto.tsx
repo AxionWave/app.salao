@@ -1,10 +1,11 @@
 import { Alert } from '@/components/ui';
 import { labelStatus } from '@/lib/agenda';
+import { relogio } from '@/lib/fuso';
 import type { ImpactoProfissional } from '@/services/profissional.service';
 import { useTermos } from '@/contexts/TermosContext';
 
 const formatarDiaHora = (iso: string) =>
-    new Date(iso).toLocaleString('pt-BR', {
+    relogio(iso).toLocaleString('pt-BR', {
         weekday: 'short',
         day: '2-digit',
         month: '2-digit',

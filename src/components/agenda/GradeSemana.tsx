@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui';
 import {
-    cloneDia,
     corStatus,
     corToken,
     dataComMinutos,
@@ -13,6 +12,7 @@ import {
     mesmoDia,
     ocupaHorario,
 } from '@/lib/agenda';
+import { hojeNaEmpresa } from '@/lib/fuso';
 import { rotuloServicos, type Agendamento, type ProfissionalAgenda } from '@/services/agendamento.service';
 import { type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
@@ -39,7 +39,7 @@ export default function GradeSemana({
     compact?: boolean;
 }) {
     const termos = useTermos();
-    const hoje = cloneDia(new Date());
+    const hoje = hojeNaEmpresa();
     const unico = profissionais.length === 1 ? profissionais[0] : null;
 
     return (

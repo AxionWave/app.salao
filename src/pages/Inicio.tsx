@@ -26,6 +26,7 @@ import {
     profissionaisNaGrade,
     varianteStatus,
 } from '@/lib/agenda';
+import { hojeNaEmpresa, instante, relogio } from '@/lib/fuso';
 import {
     MODULO_AGENDA,
     MODULO_CLIENTES,
@@ -39,7 +40,7 @@ import {
     type OpcoesAgenda,
 } from '@/services/agendamento.service';
 import { bloqueiaProfissional, bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
-import { useTermos } from '@/contexts/TermosContext';
+import { useConfiguracaoEmpresa, useTermos } from '@/contexts/TermosContext';
 
 function saudacaoNome(): string {
     const user = authService.getStoredUserInfo();
@@ -54,18 +55,20 @@ export default function InicioPage() {
     const termos = useTermos();
     const temAgenda = authService.hasModulo(MODULO_AGENDA);
     const nome = saudacaoNome();
+    const fuso = useConfiguracaoEmpresa().configuracao?.fusoHorario;
     const [agora, setAgora] = useState(() => Date.now());
-    const [hoje, setHoje] = useState(() => cloneDia(new Date()));
+    const [hoje, setHoje] = useState(() => hojeNaEmpresa());
     useEffect(() => {
         // A tela costuma ficar aberta o dia todo (e de um dia para o outro) na recepção.
         const atualizar = () => {
-            const d = new Date();
-            setAgora(d.getTime());
-            setHoje((h) => (h.getTime() === cloneDia(d).getTime() ? h : cloneDia(d)));
+            setAgora(Date.now());
+            const d = hojeNaEmpresa();
+            setHoje((h) => (h.getTime() === d.getTime() ? h : d));
         };
         const aoVoltar = () => {
             if (document.visibilityState === 'visible') atualizar();
         };
+        atualizar();
         const timer = window.setInterval(atualizar, 60_000);
         window.addEventListener('focus', atualizar);
         document.addEventListener('visibilitychange', aoVoltar);
@@ -74,10 +77,10 @@ export default function InicioPage() {
             window.removeEventListener('focus', atualizar);
             document.removeEventListener('visibilitychange', aoVoltar);
         };
-    }, []);
+    }, [fuso]);
     const partes = partesDia(hoje);
     const [visaoCal, setVisaoCal] = useState<'semana' | 'mes'>('mes');
-    const [cursor, setCursor] = useState(() => cloneDia(new Date()));
+    const [cursor, setCursor] = useState(() => hojeNaEmpresa());
     const [diaAberto, setDiaAberto] = useState<Date | null>(null);
 
     const [filtroProf, setFiltroProf] = useState('');
@@ -118,14 +121,14 @@ export default function InicioPage() {
             const [ops, lista, blq] = await Promise.all([
                 agendamentoService.opcoes(),
                 agendamentoService.listar({
-                    de: periodo.de.toISOString(),
-                    ate: periodo.ate.toISOString(),
+                    de: instante(periodo.de).toISOString(),
+                    ate: instante(periodo.ate).toISOString(),
                     profissionalId: filtroProf ? Number(filtroProf) : undefined,
                 }),
                 bloqueioService
                     .listar({
-                        de: periodo.de.toISOString(),
-                        ate: periodo.ate.toISOString(),
+                        de: instante(periodo.de).toISOString(),
+                        ate: instante(periodo.ate).toISOString(),
                         profissionalId: filtroProf ? Number(filtroProf) : undefined,
                     })
                     .catch(() => [] as Bloqueio[]),
@@ -142,7 +145,9 @@ export default function InicioPage() {
         } finally {
             if (pedido === pedidoAtual.current) setCarregando(false);
         }
-    }, [temAgenda, periodo.de, periodo.ate, filtroProf]);
+        // O período é convertido pelo fuso da empresa, que pode chegar depois da primeira carga.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [temAgenda, periodo.de, periodo.ate, filtroProf, fuso]);
 
     useEffect(() => {
         void carregar();
@@ -194,7 +199,7 @@ export default function InicioPage() {
         if (opts?.novo) q.set('novo', '1');
         const pid = opts?.profissionalId ?? (filtroProf ? Number(filtroProf) : undefined);
         if (pid) q.set('profissionalId', String(pid));
-        if (opts?.inicio) q.set('inicio', opts.inicio.toISOString());
+        if (opts?.inicio) q.set('inicio', instante(opts.inicio).toISOString());
         if (opts?.id) q.set('id', String(opts.id));
         if (opts?.visao) q.set('visao', opts.visao);
         const data = opts?.data ?? (opts?.inicio ? cloneDia(opts.inicio) : undefined);
@@ -433,7 +438,7 @@ export default function InicioPage() {
                                         id: a.id,
                                         profissionalId: a.profissionalId,
                                         visao: 'dia',
-                                        data: cloneDia(new Date(a.inicio)),
+                                        data: cloneDia(relogio(a.inicio)),
                                     })
                                 }
                             />
@@ -495,7 +500,7 @@ export default function InicioPage() {
                                                 id: a.id,
                                                 profissionalId: a.profissionalId,
                                                 visao: 'dia',
-                                                data: cloneDia(new Date(a.inicio)),
+                                                data: cloneDia(relogio(a.inicio)),
                                             })
                                         }
                                         className="rounded-lyra border px-3 py-2 text-left"

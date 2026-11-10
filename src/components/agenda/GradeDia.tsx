@@ -21,15 +21,16 @@ import {
     slotDentro,
     type Faixa,
 } from '@/lib/agenda';
+import { agoraNaEmpresa, hojeNaEmpresa } from '@/lib/fuso';
 import { rotuloServicos, type Agendamento, type ProfissionalAgenda } from '@/services/agendamento.service';
 import { bloqueiaProfissional, type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
 
 function useAgora(ativo: boolean) {
-    const [agora, setAgora] = useState(() => new Date());
+    const [agora, setAgora] = useState(() => agoraNaEmpresa());
     useEffect(() => {
         if (!ativo) return;
-        const t = window.setInterval(() => setAgora(new Date()), 30_000);
+        const t = window.setInterval(() => setAgora(agoraNaEmpresa()), 30_000);
         return () => window.clearInterval(t);
     }, [ativo]);
     return agora;
@@ -59,7 +60,7 @@ export default function GradeDia({
         agendamentos.filter((a) => profissionais.some((p) => p.id === a.profissionalId))
     );
     const slots = gerarSlots(limites.inicio, limites.fim);
-    const ehHoje = cloneDia(dia).getTime() === cloneDia(new Date()).getTime();
+    const ehHoje = cloneDia(dia).getTime() === hojeNaEmpresa().getTime();
     const agora = useAgora(ehHoje);
     const agoraMin = agora.getHours() * 60 + agora.getMinutes();
     const linhaAgora =

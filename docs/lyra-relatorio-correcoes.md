@@ -17,7 +17,7 @@ Prioridade sugerida: **R-01, R-02** (segurança) → **R-03, R-06, R-07** (acess
 
 ## Situação em 10/11/2026
 
-**Corrigidos:** R-01 a R-10, R-11 (expediente; o fuso ainda não avisa), R-12 a R-18, R-19 (com o botão Remarcar), R-20 a R-24, R-27 a R-31 (R-29 inteiro, com a família para o telefone único). Os itens do backend foram validados por testes de API (114 de 114 passando).
+**Corrigidos:** R-01 a R-10, R-11 (expediente; o fuso ainda não avisa), R-12 a R-18, R-19 (com o botão Remarcar), R-20 a R-24, R-26 a R-31 (R-29 inteiro, com a família para o telefone único). Os itens do backend foram validados por testes de API (114 de 114 passando).
 
 O que mudou para quem usa:
 - A API não sobe em produção sem `JWT_SECRET` e ignora os cabeçalhos `X-Empresa-Id`, `X-User-Roles` e afins.
@@ -32,11 +32,12 @@ O que mudou para quem usa:
 - Serviços mostram profissionais inativos ainda vinculados como "(inativo)" e avisam quando ninguém ativo atende.
 - A lista de perfis de acesso (`GET /api/salao/perfis-acesso`) exige o módulo Profissionais ou Configurações.
 - Remover bloqueio e excluir perfil pedem confirmação. Sair apaga os nomes personalizados guardados no navegador.
+- Agenda, Início, bloqueios e avisos de impacto mostram e gravam os horários no fuso da empresa, mesmo quando o computador está em outro fuso. Uma linha discreta avisa quando os dois diferem.
 - Erros da API e do front em produção vão para o Sentry (projetos `lyra-api` e `lyra-web`), que avisa por e-mail. Uma tela que quebra mostra "Algo deu errado nesta tela" com o botão Recarregar, em vez da página de erro do React Router.
 
 **A confirmar no Core:** se o Core também confere o token em `definir-senha-inicial` (R-05) e se substitui a lista de módulos ao salvar perfil (R-03). Também conferir se o `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`): a API aceita qualquer chave não vazia, e trocar exige mudar o oAuth junto.
 
-**Pendentes:** R-26 (grade no fuso da empresa). O R-25 não se confirmou: a imagem tem `tzdata`, e o CI checa isso.
+**Pendentes:** nenhum. O R-25 não se confirmou: a imagem tem `tzdata`, e o CI checa isso.
 
 ---
 
