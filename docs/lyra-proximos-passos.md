@@ -70,7 +70,7 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
                                     Worker em segundo plano (HostedService)
                                     ├── Painel ao vivo ...... SignalR (WebSocket)
                                     ├── Celular/navegador ... Web Push (PWA)
-                                    ├── E-mail .............. Amazon SES ou Resend
+                                    ├── E-mail .............. Resend
                                     └── WhatsApp ............ WhatsApp Cloud API (Meta)
                                                   │
                          Respostas (botões, links) ──▶ webhook ──▶ atualiza o status
@@ -82,7 +82,7 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
 - **Com o app fechado:** o front vira PWA ("instalar no celular") e usa Web Push. O profissional recebe a notificação no celular sem precisar de app na loja.
 - **Lembretes agendados:** Hangfire (com Postgres) ou Quartz. Ao criar ou remarcar, agenda os lembretes; ao cancelar, remove. Precisa respeitar o fuso da empresa.
 - **WhatsApp:** a Cloud API oficial da Meta. Mensagens iniciadas pela empresa exigem **modelos aprovados** pela Meta (confirmação, lembrete, cancelamento), e cada conversa tem custo. Os botões **Confirmo** / **Remarcar** voltam pelo webhook. Evitar APIs não oficiais: o número pode ser banido.
-- **E-mail:** Amazon SES (mais barato) ou Resend (mais simples), com domínio próprio e SPF/DKIM configurados para não cair no spam. O e-mail leva um anexo `.ics` para o cliente pôr na agenda do celular.
+- **E-mail:** Resend, com domínio próprio (`lyra.lumensoft.com.br`) e SPF/DKIM configurados para não cair no spam. O e-mail leva um anexo `.ics` para o cliente pôr na agenda do celular.
 - **Links de confirmação:** um token assinado e de uso único por agendamento (`/c/{token}`), que funciona sem login.
 
 ### Configuração por empresa
@@ -94,7 +94,7 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
 ### LGPD
 - [ ] Consentimento do cliente para receber WhatsApp e e-mail, guardado com data e origem.
 - [ ] Link de "não quero mais receber" em todas as mensagens; respeitar isso no worker.
-- [ ] Histórico de envios por cliente, visível na ficha. A API já existe (`GET /api/salao/clientes/{id}/notificacoes`); a aba na ficha vem com o e-mail.
+- [x] Histórico de envios por cliente, visível na ficha (aba Mensagens).
 
 ### Entregas, em ordem
 1. [x] Outbox, worker e histórico de envios.
@@ -102,7 +102,13 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
    - O worker roda a cada `Notificacoes:IntervaloSegundos` (10 s) e pega uma linha por vez com `FOR UPDATE SKIP LOCKED`, então várias instâncias da API não enviam em dobro. Se falhar, tenta de novo depois de 1 min, 5 min, 30 min, 2 h e 6 h; depois disso marca `falhou` e registra erro (vai para o Sentry).
    - Canais implementam `ICanalNotificacao`. Só entra na fila o canal que está em `Notificacoes:Canais` **e** tem implementação registrada. Nesta entrega nenhum canal real existe, então nada é enfileirado em produção; o e-mail (entrega 3) é o primeiro.
 2. [ ] SignalR: grade e Início ao vivo e o sino de notificações no painel.
-3. [ ] E-mail: confirmação, remarcação, cancelamento, com `.ics` e link de confirmar.
+3. [x] E-mail: confirmação, remarcação, cancelamento, com `.ics` e link de confirmar.
+   - Resend com o domínio `lyra.lumensoft.com.br` (SPF, DKIM e DMARC na Hostinger, região São Paulo, sem rastreio de abertura e clique). Remetente `naoresponda@`, com o nome da empresa como nome de exibição e `reply_to` para o e-mail dela. Chave em `RESEND_API_KEY` (secret do repositório da API); sem chave o canal nem é registrado.
+   - Por empresa: `enviar_emails` em `lyra.empresa_config`, desligado por padrão, chave em Configurações. Os dados da empresa (nome, e-mail, telefone, endereço) são lidos de `core.empresas`.
+   - Eventos: criado, remarcado, cancelado e confirmado (este só quando a equipe confirma; quando o próprio cliente confirma pelo link, a tela já mostra o resultado). O `.ics` usa o mesmo UID ao longo das remarcações e `METHOD:CANCEL` no cancelamento, então o celular atualiza o evento em vez de duplicar.
+   - Envio com `Idempotency-Key` por notificação; erro 4xx do Resend (fora 408, 409 e 429) falha na hora, sem novas tentativas.
+   - Link `/c/{token}`: token assinado (HMAC) com o id do agendamento, sem login, via `GET /api/salao/publico/agendamentos/{token}` e `POST .../confirmar`. Só confirma agendamento futuro e ainda "agendado". O Gateway tem a rota `salao-public` sem o filtro de JWT.
+   - Aba **Mensagens** na ficha do cliente com o histórico de envios.
 4. [ ] WhatsApp: modelos aprovados, envio, webhook dos botões.
 5. [ ] Lembretes agendados e resumo do dia do profissional.
 6. [ ] PWA e Web Push.

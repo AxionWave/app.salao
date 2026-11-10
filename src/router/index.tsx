@@ -9,6 +9,7 @@ import ProfissionaisPage from '@/pages/Profissionais';
 import ConfiguracoesPage from '@/pages/Configuracoes';
 import PerfilPage from '@/pages/Perfil';
 import PrimeiroAcessoPage from '@/pages/PrimeiroAcesso';
+import ConfirmarPresencaPage from '@/pages/ConfirmarPresenca';
 import ErroRota from '@/components/ErroRota';
 import ModuleProtectedRoute from './ModuleProtectedRoute';
 import ProtectedRoute from './ProtectedRoute';
@@ -18,6 +19,7 @@ const rotas: RouteObject[] = [
     { path: '/', element: <Navigate to="/login" replace /> },
     { path: '/login', element: <LoginPage /> },
     { path: '/primeiro-acesso', element: <PrimeiroAcessoPage /> },
+    { path: '/c/:token', element: <ConfirmarPresencaPage /> },
     {
         path: '/perfil',
         element: (

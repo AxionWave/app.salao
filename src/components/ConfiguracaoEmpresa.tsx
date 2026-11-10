@@ -33,6 +33,7 @@ export default function ConfiguracaoEmpresa() {
     const [fuso, setFuso] = useState('');
     const [terminologia, setTerminologia] = useState<Terminologia | null>(null);
     const [personalizar, setPersonalizar] = useState(false);
+    const [enviarEmails, setEnviarEmails] = useState(false);
     const [carregando, setCarregando] = useState(true);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState('');
@@ -49,6 +50,7 @@ export default function ConfiguracaoEmpresa() {
                 setFuso(cfg.fusoHorario);
                 setTerminologia(cfg.terminologia);
                 setPersonalizar(cfg.personalizada);
+                setEnviarEmails(cfg.enviarEmails);
             } catch (e) {
                 if (vivo) setErro(mensagemErroHttp(e));
             } finally {
@@ -94,10 +96,12 @@ export default function ConfiguracaoEmpresa() {
                 segmento,
                 fusoHorario: fuso,
                 terminologia: usarPersonalizada ? terminologia : null,
+                enviarEmails,
             });
             aplicar(cfg);
             setTerminologia(cfg.terminologia);
             setPersonalizar(cfg.personalizada);
+            setEnviarEmails(cfg.enviarEmails);
             setSalvoEm(new Date());
         } catch (e) {
             setErro(mensagemErroHttp(e));
@@ -231,6 +235,19 @@ export default function ConfiguracaoEmpresa() {
                                 ))}
                             </div>
                         )}
+
+                        <div className="border-t pt-4" style={{ borderColor: 'var(--line)' }}>
+                            <Switch
+                                label={`Avisar ${t.cliente.plural.toLocaleLowerCase('pt-BR')} por e-mail`}
+                                descricao="Quem tiver e-mail no cadastro recebe a confirmação ao marcar, remarcar ou cancelar, com o convite para a agenda do celular e um botão para confirmar presença. O remetente é o nome da empresa e as respostas vão para o e-mail do cadastro dela."
+                                checked={enviarEmails}
+                                disabled={salvando}
+                                onChange={(v) => {
+                                    setEnviarEmails(v);
+                                    setSalvoEm(null);
+                                }}
+                            />
+                        </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>

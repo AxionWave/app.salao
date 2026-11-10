@@ -8,6 +8,7 @@ import { formatarTelefoneExibicao, telefoneValido } from '@/lib/telefone';
 import { clienteService, type Cliente, type SalvarCliente } from '@/services/cliente.service';
 import { useTermos } from '@/contexts/TermosContext';
 import SecaoFamilia, { type EstadoFamilia } from '@/components/clientes/SecaoFamilia';
+import MensagensCliente from '@/components/clientes/MensagensCliente';
 
 const PAGE_SIZE = 10;
 
@@ -38,6 +39,7 @@ export default function ClientesPage() {
     const [familia, setFamilia] = useState<EstadoFamilia>(semFamilia);
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
+    const [aba, setAba] = useState<'dados' | 'mensagens'>('dados');
 
     const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const podeSalvar = form.nome.trim().length > 0 && telefoneValido(form.telefone);
@@ -83,6 +85,7 @@ export default function ClientesPage() {
         setForm({ ...vazio });
         setFamilia(semFamilia);
         setFormErro('');
+        setAba('dados');
         setFormAberto(true);
     };
 
@@ -99,6 +102,7 @@ export default function ClientesPage() {
         });
         setFamilia({ ...semFamilia, parentesco: c.parentesco ?? '' });
         setFormErro('');
+        setAba('dados');
         setFormAberto(true);
     };
 
@@ -324,66 +328,103 @@ export default function ClientesPage() {
                 }
                 onClose={fecharForm}
                 rodape={
-                    <>
-                        <Button variant="ghost" onClick={fecharForm} disabled={salvando}>
-                            Cancelar
+                    aba === 'mensagens' ? (
+                        <Button variant="ghost" onClick={fecharForm}>
+                            Fechar
                         </Button>
-                        <Button onClick={() => void salvar()} disabled={salvando || !podeSalvar}>
-                            {salvando ? 'Salvando…' : 'Salvar'}
-                        </Button>
-                    </>
+                    ) : (
+                        <>
+                            <Button variant="ghost" onClick={fecharForm} disabled={salvando}>
+                                Cancelar
+                            </Button>
+                            <Button onClick={() => void salvar()} disabled={salvando || !podeSalvar}>
+                                {salvando ? 'Salvando…' : 'Salvar'}
+                            </Button>
+                        </>
+                    )
                 }
             >
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <Input
-                        label="Nome"
-                        required
-                        value={form.nome}
-                        onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-                    />
-                    <PhoneInput
-                        label="Telefone"
-                        required
-                        value={form.telefone}
-                        onChange={(telefone) => setForm((f) => ({ ...f, telefone }))}
-                    />
-                    <div className="sm:col-span-2">
-                        <Input
-                            label="E-mail"
-                            type="email"
-                            placeholder="Opcional"
-                            value={form.email ?? ''}
-                            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                {editando && (
+                    <div role="tablist" className="mb-4 flex gap-1 border-b" style={{ borderColor: 'var(--line)' }}>
+                        {(
+                            [
+                                ['dados', 'Dados'],
+                                ['mensagens', 'Mensagens'],
+                            ] as const
+                        ).map(([id, rotulo]) => (
+                            <button
+                                key={id}
+                                type="button"
+                                role="tab"
+                                aria-selected={aba === id}
+                                onClick={() => setAba(id)}
+                                className="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
+                                style={{
+                                    borderColor: aba === id ? 'var(--copper)' : 'transparent',
+                                    color: aba === id ? 'var(--ink)' : 'var(--muted-foreground)',
+                                }}
+                            >
+                                {rotulo}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {editando && aba === 'mensagens' ? (
+                    <MensagensCliente clienteId={editando.id} />
+                ) : (
+                    <>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Input
+                                label="Nome"
+                                required
+                                value={form.nome}
+                                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                            />
+                            <PhoneInput
+                                label="Telefone"
+                                required
+                                value={form.telefone}
+                                onChange={(telefone) => setForm((f) => ({ ...f, telefone }))}
+                            />
+                            <div className="sm:col-span-2">
+                                <Input
+                                    label="E-mail"
+                                    type="email"
+                                    placeholder="Opcional"
+                                    value={form.email ?? ''}
+                                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <Textarea
+                                label="Observações"
+                                placeholder="Alergias, preferências, recados…"
+                                value={form.observacoes ?? ''}
+                                onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+                            />
+                        </div>
+                        <div className="mt-5">
+                            <Switch
+                                checked={form.ativo}
+                                onChange={(ativo) => setForm((f) => ({ ...f, ativo }))}
+                                label="Ativo na agenda"
+                                descricao="Inativos continuam na lista e podem ser editados."
+                            />
+                        </div>
+                        <SecaoFamilia
+                            editando={editando}
+                            telefone={form.telefone}
+                            email={form.email ?? ''}
+                            valor={familia}
+                            onChange={setFamilia}
                         />
-                    </div>
-                </div>
-                <div className="mt-4">
-                    <Textarea
-                        label="Observações"
-                        placeholder="Alergias, preferências, recados…"
-                        value={form.observacoes ?? ''}
-                        onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
-                    />
-                </div>
-                <div className="mt-5">
-                    <Switch
-                        checked={form.ativo}
-                        onChange={(ativo) => setForm((f) => ({ ...f, ativo }))}
-                        label="Ativo na agenda"
-                        descricao="Inativos continuam na lista e podem ser editados."
-                    />
-                </div>
-                <SecaoFamilia
-                    editando={editando}
-                    telefone={form.telefone}
-                    email={form.email ?? ''}
-                    valor={familia}
-                    onChange={setFamilia}
-                />
-                {formErro && (
-                    <div className="mt-3">
-                        <Alert titulo={tituloDeMensagem(formErro)}>{formErro}</Alert>
-                    </div>
+                        {formErro && (
+                            <div className="mt-3">
+                                <Alert titulo={tituloDeMensagem(formErro)}>{formErro}</Alert>
+                            </div>
+                        )}
+                    </>
                 )}
             </Modal>
         </PageLayout>

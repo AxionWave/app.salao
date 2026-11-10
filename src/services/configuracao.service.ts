@@ -24,6 +24,7 @@ export interface ConfiguracaoEmpresa {
     terminologia: Terminologia;
     personalizada: boolean;
     dataAtualizacao: string | null;
+    enviarEmails: boolean;
 }
 
 export interface Segmento {
@@ -46,6 +47,7 @@ export interface SalvarConfiguracao {
     segmento: string;
     fusoHorario: string;
     terminologia: Terminologia | null;
+    enviarEmails?: boolean;
 }
 
 const base = `${API_CONFIG.productBase}/configuracao`;
