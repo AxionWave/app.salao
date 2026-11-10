@@ -19,6 +19,7 @@ export default function CampoCliente({
     obrigatorio = true,
     buscar = buscarNaAgenda,
     ocultar,
+    listaNoFluxo = false,
 }: {
     label: string;
     valor: ClienteEscolhido | null;
@@ -28,6 +29,8 @@ export default function CampoCliente({
     buscar?: (texto: string) => Promise<Cliente[]>;
     /** Fichas que não podem ser escolhidas (ex.: a própria ficha em edição). */
     ocultar?: (c: Cliente) => boolean;
+    /** Lista ocupa espaço no layout; use no fim de áreas com rolagem, onde uma lista flutuante seria cortada. */
+    listaNoFluxo?: boolean;
 }) {
     const [texto, setTexto] = useState(valor?.nome ?? '');
     const [aberto, setAberto] = useState(false);
@@ -35,6 +38,11 @@ export default function CampoCliente({
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState('');
     const pedido = useRef(0);
+    const lista = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (listaNoFluxo && aberto) lista.current?.scrollIntoView({ block: 'nearest' });
+    }, [listaNoFluxo, aberto, resultados.length]);
 
     useEffect(() => {
         setTexto(valor?.nome ?? '');
@@ -102,8 +110,9 @@ export default function CampoCliente({
             />
             {aberto && (
                 <div
+                    ref={lista}
                     role="listbox"
-                    className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-y-auto rounded-lyra border py-1 shadow-lg"
+                    className={`${listaNoFluxo ? '' : 'absolute left-0 right-0 z-20 shadow-lg '}mt-1 max-h-60 overflow-y-auto rounded-lyra border py-1`}
                     style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}
                 >
                     {erro ? (

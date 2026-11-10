@@ -194,10 +194,11 @@ export default function SecaoFamilia({
             )}
 
             {!temFamilia && buscando && (
-                <div className="mt-3 flex items-end gap-2">
+                <div className="mt-3 flex items-start gap-2">
                     <CampoCliente
                         label="Ficha da família"
                         obrigatorio={false}
+                        listaNoFluxo
                         valor={null}
                         onChange={(c) => c && entrar(c)}
                         buscar={async (texto) =>
@@ -205,7 +206,7 @@ export default function SecaoFamilia({
                         }
                         ocultar={(c) => c.id === editando?.id}
                     />
-                    <Button size="sm" variant="ghost" onClick={() => setBuscando(false)}>
+                    <Button size="sm" variant="ghost" className="mt-8" onClick={() => setBuscando(false)}>
                         Cancelar
                     </Button>
                 </div>

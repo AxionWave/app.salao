@@ -388,17 +388,15 @@ export default function AgendaPage() {
 
     const mudarStatus = async (status: string) => {
         if (!editando) return;
+        const esteAgendamento = `${termos.agendamento.genero === 'f' ? 'esta' : 'este'} ${termos.um('agendamento')}`;
         let motivo: string | null = null;
         if (status === 'cancelado') {
-            const resposta = window.prompt(
-                `Cancelar este ${termos.agendamento.singular.toLowerCase()}? Se quiser, escreva o motivo (opcional).`,
-                ''
-            );
+            const resposta = window.prompt(`Cancelar ${esteAgendamento}? Se quiser, escreva o motivo (opcional).`, '');
             if (resposta === null) return;
             motivo = resposta.trim().slice(0, 200) || null;
         } else if (statusTerminal(status)) {
             const ok = window.confirm(
-                `Marcar como "${labelStatus(status)}"? Depois disso não dá para alterar este ${termos.agendamento.singular.toLowerCase()}.`
+                `Marcar como "${labelStatus(status)}"? Depois disso não dá para alterar ${esteAgendamento}.`
             );
             if (!ok) return;
         }
@@ -965,9 +963,10 @@ export default function AgendaPage() {
 
                 {encerrado && (
                     <p className="mt-4 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        {`${termos.agendamento.singular} ${termos.adj('agendamento', 'encerrado')}. `}
                         {podeRemarcar
-                            ? 'Agendamento encerrado. Para atender em outro horário, use Remarcar.'
-                            : 'Agendamento encerrado. Não é possível alterar horário nem status.'}
+                            ? 'Para atender em outro horário, use Remarcar.'
+                            : 'Não é possível alterar horário nem status.'}
                     </p>
                 )}
 
