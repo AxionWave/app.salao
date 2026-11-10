@@ -4,6 +4,8 @@ import PageCard from '@/components/layout/PageCard';
 import { Alert, Badge, Button, Input, Modal, Switch, Table, Textarea } from '@/components/ui';
 import { authService } from '@core/services';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
+import ConfiguracaoEmpresa from '@/components/ConfiguracaoEmpresa';
+import { useTermos } from '@/contexts/TermosContext';
 import {
     CATALOGO_FLAGS,
     ehClienteAdmin,
@@ -12,6 +14,7 @@ import {
     flagsDoPerfil,
     flagsVazias,
     perfilAcessoService,
+    rotuloFlag,
     rotuloFlags,
     type FlagsForm,
     type ModuloLyraCatalogo,
@@ -19,6 +22,7 @@ import {
 } from '@/services/perfilAcesso.service';
 
 export default function ConfiguracoesPage() {
+    const termos = useTermos();
     const empresaId = Number(authService.getStoredUserInfo()?.empresaId || 0);
     const [itens, setItens] = useState<PerfilLyraCompleto[]>([]);
     const [catalogo, setCatalogo] = useState<ModuloLyraCatalogo[]>([]);
@@ -145,13 +149,15 @@ export default function ConfiguracoesPage() {
     return (
         <PageLayout
             titulo="Configurações"
-            subtitulo="Perfis e permissões"
+            subtitulo="Empresa, perfis e permissões"
             acoes={
                 <Button size="sm" onClick={abrirNovo}>
                     Novo perfil
                 </Button>
             }
         >
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <ConfiguracaoEmpresa />
             <PageCard>
                 <p className="mb-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
                     Defina o que cada perfil pode fazer no Lyra (agendar, clientes, serviços, relatório,
@@ -215,7 +221,7 @@ export default function ConfiguracoesPage() {
                                         </Table.Cell>
                                         <Table.Cell>
                                             <p className="max-w-md text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                                {rotuloFlags(flagsP)}
+                                                {rotuloFlags(flagsP, termos)}
                                             </p>
                                         </Table.Cell>
                                         <Table.Cell>
@@ -242,6 +248,7 @@ export default function ConfiguracoesPage() {
                     </Table>
                 )}
             </PageCard>
+            </div>
 
             <Modal
                 aberto={formAberto}
@@ -252,7 +259,7 @@ export default function ConfiguracoesPage() {
                         ? 'Cliente Admin tem todas as permissões do Lyra. Não dá para desmarcar nem apagar.'
                         : ehFuncionarioLyra(editando?.nome || '')
                           ? 'Perfil fixo: dá para mudar as flags, não o nome.'
-                          : 'Marque o que este perfil pode fazer no salão.'
+                          : 'Marque o que este perfil pode fazer no Lyra.'
                 }
                 onClose={fecharForm}
                 largura="36rem"
@@ -294,7 +301,7 @@ export default function ConfiguracoesPage() {
                         ).map((item) => (
                             <Switch
                                 key={item.id}
-                                label={item.label}
+                                label={rotuloFlag(item, termos)}
                                 descricao={item.detalhe}
                                 checked={flags[item.id]}
                                 disabled={bloqueadoClienteAdmin || salvando}

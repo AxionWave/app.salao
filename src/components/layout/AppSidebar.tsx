@@ -4,8 +4,10 @@ import { APP_CONFIG, urlInicioAsc } from '@core/config';
 import { buildSsoLaunchUrl } from '@core/auth/sso';
 import { MODULOS } from '@/constants/moduleCodes';
 import { temAcessoHubAsc } from '@/lib/acesso';
+import { useTermos } from '@/contexts/TermosContext';
 
 export default function AppSidebar() {
+    const termos = useTermos();
     const user = authService.getStoredUserInfo();
     const nomeEmpresa = user?.empresaNome || APP_CONFIG.empresa;
     const podeIrAoAsc = temAcessoHubAsc();
@@ -16,9 +18,7 @@ export default function AppSidebar() {
 
     const visiveis = MODULOS.filter((m) => {
         if (authService.hasModulo(m.codigo)) return true;
-        return 'aliases' in m && Array.isArray(m.aliases)
-            ? m.aliases.some((a) => authService.hasModulo(a))
-            : false;
+        return m.aliases?.some((a) => authService.hasModulo(a)) ?? false;
     });
 
     return (
@@ -78,7 +78,7 @@ export default function AppSidebar() {
                                 : { color: 'var(--lyra-sidebar-fg)' }
                         }
                     >
-                        {m.nome}
+                        {m.termo ? termos[m.termo].plural : m.nome}
                     </NavLink>
                 ))}
             </nav>

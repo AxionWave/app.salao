@@ -11,6 +11,9 @@ export interface Servico {
     ativo: boolean;
     dataCriacao: string;
     dataAtualizacao: string | null;
+    intervaloAposMinutos: number;
+    /** Quem atende. Vazio = todos. */
+    profissionalIds: number[];
 }
 
 export interface SalvarServico {
@@ -19,6 +22,14 @@ export interface SalvarServico {
     preco: number;
     categoria?: string | null;
     ativo: boolean;
+    intervaloAposMinutos: number;
+    profissionalIds: number[];
+}
+
+export interface ProfissionalResumo {
+    id: number;
+    nome: string;
+    cor: string;
 }
 
 export interface ListaServicos {
@@ -27,6 +38,7 @@ export interface ListaServicos {
     page: number;
     pageSize: number;
     categorias: string[];
+    profissionais: ProfissionalResumo[];
 }
 
 const base = `${API_CONFIG.productBase}/servicos`;

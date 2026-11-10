@@ -27,6 +27,8 @@ export interface Agendamento {
     observacoes: string | null;
     dataCriacao: string;
     dataAtualizacao: string | null;
+    /** Preparo depois do atendimento; a agenda fica ocupada até fim + este tempo. */
+    intervaloAposMinutos: number;
 }
 
 export interface SalvarAgendamento {
@@ -55,11 +57,31 @@ export interface ServicoAgenda {
     nome: string;
     duracaoMinutos: number;
     preco: number;
+    intervaloAposMinutos: number;
+    /** Quem atende. Vazio = todos. */
+    profissionalIds: number[];
 }
 
 export interface OpcoesAgenda {
     profissionais: ProfissionalAgenda[];
     servicos: ServicoAgenda[];
+    fusoHorario: string;
+}
+
+export interface HorarioLivre {
+    inicio: string;
+    hora: string;
+}
+
+export interface HorariosLivres {
+    data: string;
+    duracaoMinutos: number;
+    fusoHorario: string;
+    profissionais: { profissionalId: number; nome: string; horarios: HorarioLivre[] }[];
+}
+
+export function atendeServicos(servicos: ServicoAgenda[], profissionalId: number): boolean {
+    return servicos.every((s) => s.profissionalIds.length === 0 || s.profissionalIds.includes(profissionalId));
 }
 
 export interface ListaAgendamentos {
@@ -86,6 +108,19 @@ export const agendamentoService = {
 
     async opcoes(): Promise<OpcoesAgenda> {
         const { data } = await lyraClient.get<OpcoesAgenda>(`${base}/opcoes`);
+        return data;
+    },
+
+    async horariosLivres(params: {
+        data: string;
+        servicoIds: number[];
+        profissionalId?: number;
+        ignorarAgendamentoId?: number;
+    }): Promise<HorariosLivres> {
+        const { data } = await lyraClient.get<HorariosLivres>(`${base}/horarios-livres`, {
+            params,
+            paramsSerializer: { indexes: null },
+        });
         return data;
     },
 

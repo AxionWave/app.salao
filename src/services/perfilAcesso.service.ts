@@ -7,6 +7,8 @@ import {
     MODULO_RELATORIO,
     MODULO_SERVICOS,
 } from '@/constants/moduleCodes';
+import type { ChaveTermo } from '@/services/configuracao.service';
+import type { Termos } from '@/contexts/TermosContext';
 
 export interface PerfilAcesso {
     id: number;
@@ -53,15 +55,19 @@ export interface ModuloLyraCatalogo {
 
 export type FlagLyra = 'agendar' | 'servicos' | 'clientes' | 'configuracoes' | 'relatorio';
 
-export const CATALOGO_FLAGS: {
+export type ItemCatalogoFlag = {
     id: FlagLyra;
     codigo: string;
     label: string;
+    /** Quando definido, o rótulo vira "Cadastrar <plural da terminologia>". */
+    termo?: ChaveTermo;
     detalhe: string;
-}[] = [
-    { id: 'agendar', codigo: MODULO_AGENDA, label: 'Agendar', detalhe: 'Criar e alterar horários na agenda' },
-    { id: 'clientes', codigo: MODULO_CLIENTES, label: 'Cadastrar clientes', detalhe: 'Abrir e editar ficha do salão' },
-    { id: 'servicos', codigo: MODULO_SERVICOS, label: 'Cadastrar serviços', detalhe: 'Incluir e alterar o catálogo' },
+};
+
+export const CATALOGO_FLAGS: ItemCatalogoFlag[] = [
+    { id: 'agendar', codigo: MODULO_AGENDA, label: 'Agendar', detalhe: 'Criar e alterar itens na agenda' },
+    { id: 'clientes', codigo: MODULO_CLIENTES, label: 'Cadastrar clientes', termo: 'cliente', detalhe: 'Abrir e editar fichas' },
+    { id: 'servicos', codigo: MODULO_SERVICOS, label: 'Cadastrar serviços', termo: 'servico', detalhe: 'Incluir e alterar o catálogo' },
     { id: 'relatorio', codigo: MODULO_RELATORIO, label: 'Ver relatório financeiro', detalhe: 'A tela vem depois; a permissão já fica no perfil' },
     { id: 'configuracoes', codigo: MODULO_CONFIGURACOES, label: 'Entrar nas configurações', detalhe: 'Perfis e permissões desta empresa' },
 ];
@@ -163,8 +169,12 @@ function payloadModulos(
     return out;
 }
 
-export function rotuloFlags(flags: FlagsForm): string {
-    const nomes = CATALOGO_FLAGS.filter((c) => flags[c.id]).map((c) => c.label);
+export function rotuloFlag(item: ItemCatalogoFlag, termos?: Pick<Termos, 'varios'>): string {
+    return item.termo && termos ? `Cadastrar ${termos.varios(item.termo)}` : item.label;
+}
+
+export function rotuloFlags(flags: FlagsForm, termos?: Pick<Termos, 'varios'>): string {
+    const nomes = CATALOGO_FLAGS.filter((c) => flags[c.id]).map((c) => rotuloFlag(c, termos));
     return nomes.length ? nomes.join(' · ') : 'Nenhuma permissão Lyra';
 }
 

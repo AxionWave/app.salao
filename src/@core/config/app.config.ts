@@ -4,7 +4,7 @@ export const APP_CONFIG = {
     nome: import.meta.env.VITE_APP_NOME_APP || 'Lyra',
     sigla: import.meta.env.VITE_APP_SIGLA_SISTEMA || 'LYR',
     empresa: import.meta.env.VITE_APP_NOME_EMPRESA || 'Axion Wave',
-    descricao: import.meta.env.VITE_APP_DESCRICAO_APP || 'Sistema Salão',
+    descricao: import.meta.env.VITE_APP_DESCRICAO_APP || 'Agendamentos',
     versao: import.meta.env.VITE_APP_VERSAO_APP || '1.0.0',
 } as const;
 

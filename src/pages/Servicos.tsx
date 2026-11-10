@@ -4,7 +4,13 @@ import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import { Alert, Badge, Button, Combobox, Input, Modal, Switch, Table } from '@/components/ui';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
-import { servicoService, type SalvarServico, type Servico } from '@/services/servico.service';
+import {
+    servicoService,
+    type ProfissionalResumo,
+    type SalvarServico,
+    type Servico,
+} from '@/services/servico.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const PAGE_SIZE = 10;
@@ -17,7 +23,11 @@ const vazio: SalvarServico = {
     preco: 0,
     categoria: '',
     ativo: true,
+    intervaloAposMinutos: 0,
+    profissionalIds: [],
 };
+
+const MAX_PREPARO_MIN = 240;
 
 function parsePreco(texto: string): number {
     const n = Number(texto.trim().replace(/\./g, '').replace(',', '.'));
@@ -65,6 +75,7 @@ function formatarDuracao(minutos: number): string {
 }
 
 export default function ServicosPage() {
+    const termos = useTermos();
     const [itens, setItens] = useState<Servico[]>([]);
     const [total, setTotal] = useState(0);
     const [pagina, setPagina] = useState(1);
@@ -81,6 +92,14 @@ export default function ServicosPage() {
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
     const [categorias, setCategorias] = useState<string[]>([]);
+    const [profissionais, setProfissionais] = useState<ProfissionalResumo[]>([]);
+
+    const nomeProfissional = (id: number) => profissionais.find((p) => p.id === id)?.nome ?? `#${id}`;
+    const resumoQuemAtende = (ids: number[]) => {
+        if (ids.length === 0) return `${termos.adj('recurso', 'Todos')} ${termos.adj('recurso', 'os')} ${termos.varios('recurso')}`;
+        if (ids.length <= 2) return ids.map(nomeProfissional).join(', ');
+        return `${ids.length} ${termos.contagem('recurso', ids.length)}`;
+    };
 
     const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -102,6 +121,7 @@ export default function ServicosPage() {
             setItens(data.items);
             setTotal(data.total);
             setCategorias(data.categorias ?? []);
+            setProfissionais(data.profissionais ?? []);
         } catch (e) {
             setErroLista(mensagemErroHttp(e));
             setItens([]);
@@ -117,9 +137,14 @@ export default function ServicosPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional
     }, [pagina, filtroAtivo]);
 
-    const tituloForm = editando ? 'Editar serviço' : 'Novo serviço';
+    const tituloForm = editando ? termos.editar('servico') : termos.novo('servico');
     const podeSalvar =
-        form.nome.trim().length > 0 && form.duracaoMinutos >= 1 && form.duracaoMinutos <= 1440 && form.preco >= 0;
+        form.nome.trim().length > 0 &&
+        form.duracaoMinutos >= 1 &&
+        form.duracaoMinutos <= 1440 &&
+        form.preco >= 0 &&
+        form.intervaloAposMinutos >= 0 &&
+        form.intervaloAposMinutos <= MAX_PREPARO_MIN;
 
     const fecharForm = () => {
         if (salvando) return;
@@ -146,6 +171,8 @@ export default function ServicosPage() {
             preco: s.preco,
             categoria: s.categoria ?? '',
             ativo: s.ativo,
+            intervaloAposMinutos: s.intervaloAposMinutos ?? 0,
+            profissionalIds: s.profissionalIds ?? [],
         });
         setPrecoTexto(formatarPrecoInput(s.preco));
         const unidade = unidadeSugerida(s.duracaoMinutos);
@@ -211,11 +238,11 @@ export default function ServicosPage() {
 
     return (
         <PageLayout
-            titulo="Serviços"
+            titulo={termos.servico.plural}
             subtitulo="Catálogo"
             acoes={
                 <Button size="sm" onClick={abrirNovo}>
-                    Novo serviço
+                    {termos.novo('servico')}
                 </Button>
             }
         >
@@ -269,8 +296,8 @@ export default function ServicosPage() {
                 {vazioLista && (
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                         {busca.trim() || filtroAtivo !== 'todos'
-                            ? 'Nenhum serviço encontrado com esse filtro.'
-                            : 'Nenhum serviço cadastrado. Use «Novo serviço» para montar o catálogo.'}
+                            ? `${termos.nenhum('servico')} ${termos.adj('servico', 'encontrado')} com esse filtro.`
+                            : `${termos.nenhum('servico')} ${termos.adj('servico', 'cadastrado')}. Use «${termos.novo('servico')}» para montar o catálogo.`}
                     </p>
                 )}
 
@@ -282,6 +309,7 @@ export default function ServicosPage() {
                                     <Table.Cell>Nome</Table.Cell>
                                     <Table.Cell>Categoria</Table.Cell>
                                     <Table.Cell>Duração</Table.Cell>
+                                    <Table.Cell>Quem atende</Table.Cell>
                                     <Table.Cell>Preço</Table.Cell>
                                     <Table.Cell>Status</Table.Cell>
                                     <Table.Cell></Table.Cell>
@@ -296,7 +324,15 @@ export default function ServicosPage() {
                                             </span>
                                         </Table.Cell>
                                         <Table.Cell>{s.categoria || '—'}</Table.Cell>
-                                        <Table.Cell>{formatarDuracao(s.duracaoMinutos)}</Table.Cell>
+                                        <Table.Cell>
+                                            {formatarDuracao(s.duracaoMinutos)}
+                                            {s.intervaloAposMinutos > 0 && (
+                                                <span className="block text-xs" style={{ color: 'var(--faint)' }}>
+                                                    + {s.intervaloAposMinutos} min de preparo
+                                                </span>
+                                            )}
+                                        </Table.Cell>
+                                        <Table.Cell>{resumoQuemAtende(s.profissionalIds ?? [])}</Table.Cell>
                                         <Table.Cell>{brl.format(s.preco)}</Table.Cell>
                                         <Table.Cell>
                                             <Badge variant={s.ativo ? 'ok' : 'faint'} size="sm">
@@ -357,8 +393,8 @@ export default function ServicosPage() {
                 eyebrow="Catálogo"
                 subtitulo={
                     editando
-                        ? 'Altere duração, preço ou categoria. Serviço inativo continua editável.'
-                        : 'O que o salão oferece. Nome único por empresa.'
+                        ? `Altere duração, preço ou categoria. ${termos.servico.singular} ${termos.adj('servico', 'inativo')} continua editável.`
+                        : 'O que sua empresa oferece. Nome único por empresa.'
                 }
                 onClose={fecharForm}
                 rodape={
@@ -449,6 +485,65 @@ export default function ServicosPage() {
                             setForm((f) => ({ ...f, preco: parsePreco(texto) }));
                         }}
                     />
+                    <Input
+                        label="Preparo depois (min)"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={form.intervaloAposMinutos ? String(form.intervaloAposMinutos) : ''}
+                        onChange={(e) => {
+                            const n = Number(e.target.value.replace(/\D/g, '') || 0);
+                            setForm((f) => ({ ...f, intervaloAposMinutos: Math.min(MAX_PREPARO_MIN, n) }));
+                        }}
+                        helperText="Limpeza ou preparo entre um atendimento e o próximo. A agenda fica ocupada nesse tempo."
+                    />
+                </div>
+                <div className="mt-5">
+                    <p className="mb-1.5 text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                        Quem atende
+                    </p>
+                    {profissionais.length === 0 ? (
+                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                            {`${termos.nenhum('recurso')} ${termos.adj('recurso', 'ativo')} ainda.`}
+                        </p>
+                    ) : (
+                        <>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={form.profissionalIds.length === 0 ? 'primary' : 'secondary'}
+                                    onClick={() => setForm((f) => ({ ...f, profissionalIds: [] }))}
+                                >
+                                    {`${termos.adj('recurso', 'Todos')}`}
+                                </Button>
+                                {profissionais.map((p) => {
+                                    const marcado = form.profissionalIds.includes(p.id);
+                                    return (
+                                        <Button
+                                            key={p.id}
+                                            size="sm"
+                                            variant={marcado ? 'primary' : 'secondary'}
+                                            aria-pressed={marcado}
+                                            onClick={() =>
+                                                setForm((f) => ({
+                                                    ...f,
+                                                    profissionalIds: marcado
+                                                        ? f.profissionalIds.filter((id) => id !== p.id)
+                                                        : [...f.profissionalIds, p.id],
+                                                }))
+                                            }
+                                        >
+                                            {p.nome}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                            <p className="mt-1 text-xs" style={{ color: 'var(--faint)' }}>
+                                {form.profissionalIds.length === 0
+                                    ? `Qualquer ${termos.recurso.singular.toLowerCase()} pode atender.`
+                                    : `Só ${termos.adj('recurso', 'os')} ${termos.adj('recurso', 'marcados')} aparecem na agenda para este ${termos.servico.singular.toLowerCase()}.`}
+                            </p>
+                        </>
+                    )}
                 </div>
                 <div className="mt-5">
                     <Switch

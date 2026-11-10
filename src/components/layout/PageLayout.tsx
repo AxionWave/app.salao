@@ -5,6 +5,7 @@ import { MODULOS } from '@/constants/moduleCodes';
 import AppSidebar from './AppSidebar';
 import GlobalHeader from './GlobalHeader';
 import { Button } from '@/components/ui';
+import { useTermos } from '@/contexts/TermosContext';
 
 export default function PageLayout({
     children,
@@ -20,6 +21,7 @@ export default function PageLayout({
     accessDenied?: { show: boolean; message?: string };
 }) {
     const navigate = useNavigate();
+    const termos = useTermos();
     const userInfo = authService.getStoredUserInfo();
 
     const onLogout = () => {
@@ -29,9 +31,7 @@ export default function PageLayout({
 
     const visiveis = MODULOS.filter((m) => {
         if (authService.hasModulo(m.codigo)) return true;
-        return 'aliases' in m && Array.isArray(m.aliases)
-            ? m.aliases.some((a) => authService.hasModulo(a))
-            : false;
+        return m.aliases?.some((a) => authService.hasModulo(a)) ?? false;
     });
 
     if (accessDenied?.show) {
@@ -79,7 +79,7 @@ export default function PageLayout({
                                     : { color: 'var(--ink)' }
                             }
                         >
-                            {m.nome}
+                            {m.termo ? termos[m.termo].plural : m.nome}
                         </NavLink>
                     ))}
                 </nav>

@@ -1,9 +1,10 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
 import GradeDia from '@/components/agenda/GradeDia';
 import GradeSemana from '@/components/agenda/GradeSemana';
+import BloqueioModal from '@/components/agenda/BloqueioModal';
 import { Alert, Badge, Button, Input, Modal, Textarea } from '@/components/ui';
 import { authService } from '@core/services';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
@@ -16,9 +17,10 @@ import {
     formatarDuracaoMinutos,
     formatarFaixaSemana,
     formatarHora,
+    fusoDiferenteDoNavegador,
     inicioDaSemana,
-    intervaloNoDia,
     labelStatus,
+    minutosNoDia,
     ocupaHorario,
     paraDatetimeLocal,
     parseIsoData,
@@ -31,12 +33,16 @@ import { formatarTelefoneExibicao } from '@/lib/telefone';
 import { MODULO_CLIENTES, MODULO_PROFISSIONAIS, MODULO_SERVICOS } from '@/constants/moduleCodes';
 import {
     agendamentoService,
+    atendeServicos,
     type Agendamento,
+    type HorarioLivre,
     type OpcoesAgenda,
     type SalvarAgendamento,
     rotuloServicos,
 } from '@/services/agendamento.service';
 import { clienteService, type Cliente } from '@/services/cliente.service';
+import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -90,6 +96,7 @@ function CampoSelect({
 }
 
 export default function AgendaPage() {
+    const termos = useTermos();
     const [searchParams, setSearchParams] = useSearchParams();
     const queryConsumida = useRef(false);
     const [visao, setVisao] = useState<Visao>(() =>
@@ -98,9 +105,14 @@ export default function AgendaPage() {
     const [cursor, setCursor] = useState(() => parseIsoData(searchParams.get('data')) ?? cloneDia(new Date()));
     const [filtroProf, setFiltroProf] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('');
-    const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [] });
+    const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [], fusoHorario: '' });
+    const [livres, setLivres] = useState<HorarioLivre[] | null>(null);
+    const [carregandoLivres, setCarregandoLivres] = useState(false);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [itens, setItens] = useState<Agendamento[]>([]);
+    const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
+    const [bloqueioAberto, setBloqueioAberto] = useState(false);
+    const [bloqueioSelecionado, setBloqueioSelecionado] = useState<Bloqueio | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erroLista, setErroLista] = useState('');
     const [formAberto, setFormAberto] = useState(false);
@@ -135,7 +147,7 @@ export default function AgendaPage() {
         setCarregando(true);
         setErroLista('');
         try {
-            const [ops, lista, cli] = await Promise.all([
+            const [ops, lista, cli, blq] = await Promise.all([
                 agendamentoService.opcoes(),
                 agendamentoService.listar({
                     de: periodo.de.toISOString(),
@@ -147,13 +159,22 @@ export default function AgendaPage() {
                     .listar({ ativo: true, page: 1, pageSize: 200 })
                     .then((r) => r.items)
                     .catch(() => [] as Cliente[]),
+                bloqueioService
+                    .listar({
+                        de: periodo.de.toISOString(),
+                        ate: periodo.ate.toISOString(),
+                        profissionalId: filtroProf ? Number(filtroProf) : undefined,
+                    })
+                    .catch(() => [] as Bloqueio[]),
             ]);
             setOpcoes(ops);
             setItens(lista.items);
             setClientes(cli);
+            setBloqueios(blq);
         } catch (e) {
             setErroLista(mensagemErroHttp(e));
             setItens([]);
+            setBloqueios([]);
         } finally {
             setCarregando(false);
         }
@@ -162,6 +183,38 @@ export default function AgendaPage() {
     useEffect(() => {
         void carregar();
     }, [carregar]);
+
+    const diaDoForm = form.inicio.slice(0, 10);
+    const servicoIdsChave = form.servicoIds.join(',');
+    const encerradoForm = editando ? statusTerminal(editando.status) : false;
+    useEffect(() => {
+        const profissionalId = Number(form.profissionalId);
+        if (!formAberto || encerradoForm || !profissionalId || !servicoIdsChave || !/^\d{4}-\d{2}-\d{2}$/.test(diaDoForm)) {
+            setLivres(null);
+            return;
+        }
+        let cancelado = false;
+        setCarregandoLivres(true);
+        agendamentoService
+            .horariosLivres({
+                data: diaDoForm,
+                servicoIds: servicoIdsChave.split(',').map(Number),
+                profissionalId,
+                ignorarAgendamentoId: editando?.id,
+            })
+            .then((r) => {
+                if (!cancelado) setLivres(r.profissionais.find((p) => p.profissionalId === profissionalId)?.horarios ?? []);
+            })
+            .catch(() => {
+                if (!cancelado) setLivres(null);
+            })
+            .finally(() => {
+                if (!cancelado) setCarregandoLivres(false);
+            });
+        return () => {
+            cancelado = true;
+        };
+    }, [formAberto, encerradoForm, form.profissionalId, servicoIdsChave, diaDoForm, editando?.id]);
 
     const fecharForm = () => {
         if (salvando || statusando) return;
@@ -174,8 +227,13 @@ export default function AgendaPage() {
     };
 
     const abrirNovo = (seed?: { profissionalId?: number; inicio?: Date }) => {
-        const profId = seed?.profissionalId ?? opcoes.profissionais[0]?.id;
-        const servId = opcoes.servicos[0]?.id;
+        const servico =
+            (seed?.profissionalId && opcoes.servicos.find((s) => atendeServicos([s], seed.profissionalId!))) ||
+            opcoes.servicos[0];
+        const servId = servico?.id;
+        const profId =
+            seed?.profissionalId ??
+            opcoes.profissionais.find((p) => !servico || atendeServicos([servico], p.id))?.id;
         const inicio = seed?.inicio ?? dataComMinutos(cloneDia(cursor), 9 * 60);
         setEditando(null);
         setAdicionarServicoId('');
@@ -188,6 +246,11 @@ export default function AgendaPage() {
         });
         setFormErro('');
         setFormAberto(true);
+    };
+
+    const abrirBloqueio = (b: Bloqueio) => {
+        setBloqueioSelecionado(b);
+        setBloqueioAberto(true);
     };
 
     const abrirDetalhe = (a: Agendamento) => {
@@ -267,7 +330,9 @@ export default function AgendaPage() {
     const salvar = async () => {
         const body = payload();
         if (!body) {
-            setFormErro('Preencha cliente, ao menos um serviço, profissional e horário.');
+            setFormErro(
+                `Preencha ${termos.um('cliente')}, ao menos ${termos.servico.genero === 'f' ? 'uma' : 'um'} ${termos.um('servico')}, ${termos.um('recurso')} e início.`
+            );
             return;
         }
         setSalvando(true);
@@ -312,11 +377,17 @@ export default function AgendaPage() {
         const snap = editando?.servicos.find((s) => s.id === id);
         return {
             id,
-            nome: cat?.nome ?? snap?.nome ?? `Serviço #${id}`,
+            nome: cat?.nome ?? snap?.nome ?? `${termos.servico.singular} #${id}`,
             duracaoMinutos: cat?.duracaoMinutos ?? snap?.duracaoMinutos ?? 0,
             preco: cat?.preco ?? snap?.preco ?? 0,
         };
     });
+    const servicosAgendaDoForm = opcoes.servicos.filter((s) => form.servicoIds.includes(s.id));
+    const profissionaisDoForm = opcoes.profissionais.filter(
+        (p) => atendeServicos(servicosAgendaDoForm, p.id) || String(p.id) === form.profissionalId
+    );
+    const profissionalNaoAtende =
+        Boolean(form.profissionalId) && !atendeServicos(servicosAgendaDoForm, Number(form.profissionalId));
     const duracaoTotal = servicosDoForm.reduce((acc, s) => acc + s.duracaoMinutos, 0);
     const precoTotal = servicosDoForm.reduce((acc, s) => acc + s.preco, 0);
     const horariosAtivos = itens.filter((a) => ocupaHorario(a.status)).length;
@@ -325,8 +396,7 @@ export default function AgendaPage() {
         let cap = 0;
         for (const p of profissionaisVisiveis) {
             for (const d of dias) {
-                const iv = intervaloNoDia(p.disponibilidades, d);
-                if (iv) cap += iv.fim - iv.inicio;
+                cap += minutosNoDia(p.disponibilidades, d);
             }
         }
         const usado = itens
@@ -339,11 +409,23 @@ export default function AgendaPage() {
     return (
         <PageLayout
             titulo="Agenda"
-            subtitulo="Horários e atendimentos"
+            subtitulo={termos.agendamento.plural}
             acoes={
-                <Button size="sm" onClick={() => abrirNovo()}>
-                    Novo horário
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                            setBloqueioSelecionado(null);
+                            setBloqueioAberto(true);
+                        }}
+                    >
+                        Bloquear horário
+                    </Button>
+                    <Button size="sm" onClick={() => abrirNovo()}>
+                        {termos.novo('agendamento')}
+                    </Button>
+                </div>
             }
         >
             <PageCard padded={false} className="lyra-card-quiet">
@@ -424,8 +506,8 @@ export default function AgendaPage() {
                                     </Button>
                                 </div>
                                 <div className="flex w-full gap-2 sm:w-auto sm:min-w-[22rem]">
-                                    <CampoSelect label="Profissional" value={filtroProf} onChange={setFiltroProf}>
-                                        <option value="">Todas as cadeiras</option>
+                                    <CampoSelect label={termos.recurso.singular} value={filtroProf} onChange={setFiltroProf}>
+                                        <option value="">{`${termos.adj('recurso', 'Todos')} ${termos.adj('recurso', 'os')} ${termos.varios('recurso')}`}</option>
                                         {opcoes.profissionais.map((p) => (
                                             <option key={p.id} value={p.id}>
                                                 {p.nome}
@@ -446,15 +528,19 @@ export default function AgendaPage() {
                         {!carregando && opcoes.profissionais.length > 0 && (
                             <div className="mt-4 flex flex-wrap gap-2">
                                 <ResumoChip
-                                    rotulo="Horários"
+                                    rotulo={termos.agendamento.plural}
                                     valor={String(horariosAtivos)}
                                     detalhe={visao === 'dia' ? 'neste dia' : 'nesta semana'}
                                 />
-                                <ResumoChip rotulo="Ocupação" valor={`${ocupacao}%`} detalhe="das cadeiras visíveis" />
+                                <ResumoChip
+                                    rotulo="Ocupação"
+                                    valor={`${ocupacao}%`}
+                                    detalhe={`${termos.adj('recurso', 'dos')} ${termos.varios('recurso')} ${termos.adj('recurso', 'visíveis')}`}
+                                />
                                 <ResumoChip
                                     rotulo="Equipe"
                                     valor={String(profissionaisVisiveis.length)}
-                                    detalhe={profissionaisVisiveis.length === 1 ? 'profissional' : 'profissionais'}
+                                    detalhe={termos.contagem('recurso', profissionaisVisiveis.length)}
                                 />
                             </div>
                         )}
@@ -464,6 +550,14 @@ export default function AgendaPage() {
                         {erroLista && (
                             <div className="mb-4">
                                 <Alert titulo={tituloDeMensagem(erroLista)}>{erroLista}</Alert>
+                            </div>
+                        )}
+
+                        {fusoDiferenteDoNavegador(opcoes.fusoHorario) && (
+                            <div className="mb-4">
+                                <Alert titulo="Fuso horário diferente" variant="warn">
+                                    {`Este computador está num fuso diferente do da empresa (${opcoes.fusoHorario}). A grade mostra o horário deste computador; o expediente e os horários livres seguem o fuso da empresa.`}
+                                </Alert>
                             </div>
                         )}
 
@@ -484,9 +578,9 @@ export default function AgendaPage() {
                                 >
                                     Equipe
                                 </p>
-                                <p className="mt-2 font-display text-xl font-semibold">Nenhuma cadeira na agenda</p>
+                                <p className="mt-2 font-display text-xl font-semibold">{`${termos.nenhum('recurso')} na agenda`}</p>
                                 <p className="mt-2 max-w-sm text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                    Cadastre profissionais com expediente para ver a grade do dia.
+                                    {`Cadastre ${termos.varios('recurso')} com expediente para ver a grade do dia.`}
                                 </p>
                                 {authService.hasModulo(MODULO_PROFISSIONAIS) && (
                                     <Link to="/profissionais" className="mt-5">
@@ -501,8 +595,10 @@ export default function AgendaPage() {
                                 dia={cursor}
                                 profissionais={profissionaisVisiveis}
                                 agendamentos={itens}
+                                bloqueios={bloqueios}
                                 onSlot={(profissionalId, inicio) => abrirNovo({ profissionalId, inicio })}
                                 onAbrir={abrirDetalhe}
+                                onBloqueio={abrirBloqueio}
                             />
                         )}
 
@@ -511,8 +607,10 @@ export default function AgendaPage() {
                                 dias={diasSemana}
                                 profissionais={profissionaisVisiveis}
                                 agendamentos={itens}
+                                bloqueios={bloqueios}
                                 onSlot={(profissionalId, inicio) => abrirNovo({ profissionalId, inicio })}
                                 onAbrir={abrirDetalhe}
+                                onBloqueio={abrirBloqueio}
                                 onDia={(dia) => {
                                     setCursor(dia);
                                     setVisao('dia');
@@ -525,12 +623,12 @@ export default function AgendaPage() {
 
             <Modal
                 aberto={formAberto}
-                titulo={editando ? editando.clienteNome : 'Novo horário'}
-                eyebrow={editando ? 'Agendamento' : 'Agenda'}
+                titulo={editando ? editando.clienteNome : termos.novo('agendamento')}
+                eyebrow={editando ? termos.agendamento.singular : 'Agenda'}
                 subtitulo={
                     editando
-                        ? `${formatarHora(editando.inicio)} � ${formatarHora(editando.fim)} · ${editando.profissionalNome}`
-                        : 'Cliente, serviços e profissional. Vários serviços no mesmo horário; a duração é a soma.'
+                        ? `${formatarHora(editando.inicio)} – ${formatarHora(editando.fim)} · ${editando.profissionalNome}`
+                        : `${termos.cliente.singular}, ${termos.varios('servico')} e ${termos.um('recurso')}. ${termos.adj('servico', 'Vários')} ${termos.varios('servico')} em sequência; a duração é a soma.`
                 }
                 onClose={fecharForm}
                 largura="36rem"
@@ -558,7 +656,7 @@ export default function AgendaPage() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <CampoSelect
-                        label="Cliente"
+                        label={termos.cliente.singular}
                         required
                         value={form.clienteId}
                         onChange={(clienteId) => preencherForm({ clienteId })}
@@ -571,15 +669,15 @@ export default function AgendaPage() {
                         ))}
                     </CampoSelect>
                     <CampoSelect
-                        label="Profissional"
+                        label={termos.recurso.singular}
                         required
                         value={form.profissionalId}
                         onChange={(profissionalId) => preencherForm({ profissionalId })}
                     >
                         <option value="">Selecione</option>
-                        {opcoes.profissionais.map((p) => (
+                        {profissionaisDoForm.map((p) => (
                             <option key={p.id} value={p.id}>
-                                {p.nome}
+                                {atendeServicos(servicosAgendaDoForm, p.id) ? p.nome : `${p.nome} (não atende)`}
                             </option>
                         ))}
                     </CampoSelect>
@@ -587,7 +685,7 @@ export default function AgendaPage() {
                         label="Início"
                         type="datetime-local"
                         required
-                        step={1800}
+                        step={300}
                         value={form.inicio}
                         onChange={(e) => preencherForm({ inicio: e.target.value })}
                         helperText={
@@ -596,9 +694,52 @@ export default function AgendaPage() {
                     />
                 </div>
 
+                {profissionalNaoAtende && !encerrado && (
+                    <p className="mt-2 text-xs" style={{ color: 'var(--destructive)' }}>
+                        {`Est${termos.recurso.genero === 'f' ? 'a' : 'e'} ${termos.recurso.singular.toLowerCase()} não atende ${termos.adj('servico', 'todos')} ${termos.adj('servico', 'os')} ${termos.varios('servico')} escolhidos.`}
+                    </p>
+                )}
+
+                {!encerrado && livres !== null && (
+                    <div className="mt-3">
+                        <p className="mb-1.5 text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                            {carregandoLivres
+                                ? 'Buscando horários livres…'
+                                : livres.length
+                                  ? 'Horários livres neste dia'
+                                  : 'Nenhum horário livre neste dia para essa combinação.'}
+                        </p>
+                        {livres.length > 0 && (
+                            <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                                {livres.map((h) => {
+                                    const valor = paraDatetimeLocal(new Date(h.inicio));
+                                    const ativo = valor === form.inicio;
+                                    return (
+                                        <button
+                                            key={h.inicio}
+                                            type="button"
+                                            onClick={() => preencherForm({ inicio: valor })}
+                                            className="rounded-full px-2.5 py-1 font-mono text-[11px] tabular-nums"
+                                            style={{
+                                                border: `1px solid ${ativo ? 'var(--copper)' : 'var(--line)'}`,
+                                                background: ativo
+                                                    ? 'color-mix(in oklab, var(--copper) 16%, var(--panel))'
+                                                    : 'var(--panel)',
+                                                color: ativo ? 'var(--copper)' : 'var(--ink)',
+                                            }}
+                                        >
+                                            {formatarHora(h.inicio)}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="mt-4">
                     <p className="mb-1.5 text-sm font-medium" style={{ color: 'var(--ink)' }}>
-                        Serviços
+                        {termos.servico.plural}
                         <span style={{ color: 'var(--destructive)' }}> *</span>
                     </p>
                     <div className="flex flex-col gap-2">
@@ -658,7 +799,7 @@ export default function AgendaPage() {
                                     preencherForm({ servicoIds: [...form.servicoIds, id] });
                                 }}
                             >
-                                <option value="">Adicionar serviço⬦</option>
+                                <option value="">{`Adicionar ${termos.um('servico')}⬦`}</option>
                                 {opcoes.servicos.map((s) => (
                                     <option key={s.id} value={s.id}>
                                         {s.nome} · {formatarDuracaoMinutos(s.duracaoMinutos)}
@@ -675,7 +816,7 @@ export default function AgendaPage() {
                             }}
                         >
                             <p className="text-xs font-medium" style={{ color: 'var(--ink)' }}>
-                                {servicosDoForm.length} serviço{servicosDoForm.length === 1 ? '' : 's'} em sequência
+                                {servicosDoForm.length} {termos.contagem('servico', servicosDoForm.length)} em sequência
                             </p>
                             <p className="text-xs font-semibold" style={{ color: 'var(--copper)' }}>
                                 {formatarDuracaoMinutos(duracaoTotal)} · {brl.format(precoTotal)}
@@ -686,25 +827,25 @@ export default function AgendaPage() {
 
                 {clientes.length === 0 && (
                     <p className="mt-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        Nenhum cliente ativo.{' '}
+                        {`${termos.nenhum('cliente')} ${termos.adj('cliente', 'ativo')}.`}{' '}
                         {authService.hasModulo(MODULO_CLIENTES) ? (
                             <Link to="/clientes" className="font-semibold" style={{ color: 'var(--copper)' }}>
                                 Cadastre uma ficha
                             </Link>
                         ) : (
-                            'Peça para o admin cadastrar o cliente.'
+                            `Peça para o admin fazer o cadastro.`
                         )}
                     </p>
                 )}
                 {opcoes.servicos.length === 0 && (
                     <p className="mt-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        Nenhum serviço ativo.{' '}
+                        {`${termos.nenhum('servico')} ${termos.adj('servico', 'ativo')}.`}{' '}
                         {authService.hasModulo(MODULO_SERVICOS) ? (
                             <Link to="/servicos" className="font-semibold" style={{ color: 'var(--copper)' }}>
                                 Cadastre o catálogo
                             </Link>
                         ) : (
-                            'Peça para o admin cadastrar os serviços.'
+                            `Peça para o admin cadastrar ${termos.adj('servico', 'os')} ${termos.varios('servico')}.`
                         )}
                     </p>
                 )}
@@ -757,6 +898,19 @@ export default function AgendaPage() {
                     </div>
                 )}
             </Modal>
+
+            <BloqueioModal
+                aberto={bloqueioAberto}
+                onClose={() => {
+                    setBloqueioAberto(false);
+                    setBloqueioSelecionado(null);
+                }}
+                onAlterado={() => void carregar()}
+                profissionais={opcoes.profissionais}
+                dia={cursor}
+                profissionalId={filtroProf ? Number(filtroProf) : undefined}
+                selecionado={bloqueioSelecionado}
+            />
         </PageLayout>
     );
 }

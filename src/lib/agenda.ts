@@ -146,13 +146,44 @@ export function mesmoDia(iso: string, dia: Date): boolean {
     return d.getFullYear() === dia.getFullYear() && d.getMonth() === dia.getMonth() && d.getDate() === dia.getDate();
 }
 
-export function intervaloNoDia(disp: IntervaloAgenda[], dia: Date): { inicio: number; fim: number } | null {
-    const found = disp.find((x) => x.diaSemana === dia.getDay());
-    if (!found) return null;
-    const inicio = hhmmParaMinutos(found.inicio);
-    const fim = hhmmParaMinutos(found.fim);
-    if (!(fim > inicio)) return null;
-    return { inicio, fim };
+export type Faixa = { inicio: number; fim: number };
+
+/** Faixas de expediente do dia, em minutos, ordenadas. Vazio = folga. */
+export function faixasNoDia(disp: IntervaloAgenda[], dia: Date): Faixa[] {
+    return disp
+        .filter((x) => x.diaSemana === dia.getDay())
+        .map((x) => ({ inicio: hhmmParaMinutos(x.inicio), fim: hhmmParaMinutos(x.fim) }))
+        .filter((f) => f.fim > f.inicio)
+        .sort((a, b) => a.inicio - b.inicio);
+}
+
+/** Do início da primeira faixa ao fim da última (inclui as pausas). */
+export function intervaloNoDia(disp: IntervaloAgenda[], dia: Date): Faixa | null {
+    const faixas = faixasNoDia(disp, dia);
+    if (!faixas.length) return null;
+    return { inicio: faixas[0].inicio, fim: Math.max(...faixas.map((f) => f.fim)) };
+}
+
+/** Minutos trabalhados no dia, sem as pausas. */
+export function minutosNoDia(disp: IntervaloAgenda[], dia: Date): number {
+    return faixasNoDia(disp, dia).reduce((acc, f) => acc + (f.fim - f.inicio), 0);
+}
+
+export function resumoFaixas(faixas: Faixa[]): string {
+    return faixas.map((f) => `${formatarMinutos(f.inicio)}–${formatarMinutos(f.fim)}`).join(', ');
+}
+
+/** Parte de um período (ISO) que cai dentro do dia, em minutos; null se não toca o dia. */
+export function faixaNoDia(periodo: { inicio: string; fim: string }, dia: Date): Faixa | null {
+    const d0 = cloneDia(dia).getTime();
+    const d1 = adicionarDias(dia, 1).getTime();
+    const ini = new Date(periodo.inicio).getTime();
+    const fim = new Date(periodo.fim).getTime();
+    if (fim <= d0 || ini >= d1) return null;
+    return {
+        inicio: ini <= d0 ? 0 : Math.round((ini - d0) / 60000),
+        fim: fim >= d1 ? 24 * 60 : Math.round((fim - d0) / 60000),
+    };
 }
 
 export function limitesGrade(listas: IntervaloAgenda[][], dia: Date): { inicio: number; fim: number } {
@@ -169,6 +200,32 @@ export function limitesGrade(listas: IntervaloAgenda[][], dia: Date): { inicio: 
     return { inicio: min, fim: max };
 }
 
+function deslocamentoMinutos(timeZone: string, d: Date): number | null {
+    try {
+        const partes = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            hourCycle: 'h23',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).formatToParts(d);
+        const v = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value);
+        const comoUtc = Date.UTC(v('year'), v('month') - 1, v('day'), v('hour'), v('minute'));
+        return Math.round((comoUtc - Math.floor(d.getTime() / 60000) * 60000) / 60000);
+    } catch {
+        return null;
+    }
+}
+
+/** A grade usa o relógio do navegador; avisa quando ele está num fuso diferente do da empresa. */
+export function fusoDiferenteDoNavegador(fusoEmpresa: string | undefined, agora = new Date()): boolean {
+    if (!fusoEmpresa) return false;
+    const empresa = deslocamentoMinutos(fusoEmpresa, agora);
+    return empresa !== null && empresa !== -agora.getTimezoneOffset();
+}
+
 export function gerarSlots(inicio: number, fim: number): number[] {
     const out: number[] = [];
     const a = Math.floor(inicio / SLOT_MIN) * SLOT_MIN;
@@ -176,9 +233,8 @@ export function gerarSlots(inicio: number, fim: number): number[] {
     return out;
 }
 
-export function slotDentro(iv: { inicio: number; fim: number } | null, minutos: number): boolean {
-    if (!iv) return false;
-    return minutos >= iv.inicio && minutos < iv.fim;
+export function slotDentro(faixas: Faixa[], minutos: number): boolean {
+    return faixas.some((f) => minutos >= f.inicio && minutos < f.fim);
 }
 
 export function ocupaHorario(status: string): boolean {

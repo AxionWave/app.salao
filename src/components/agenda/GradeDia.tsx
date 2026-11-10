@@ -6,19 +6,24 @@ import {
     corStatus,
     corToken,
     dataComMinutos,
+    faixaNoDia,
+    faixasNoDia,
     formatarHora,
     formatarMinutos,
     gerarSlots,
     iniciaisNome,
-    intervaloNoDia,
     labelStatus,
     limitesGrade,
     mesmoDia,
     minutosDoInstante,
     ocupaHorario,
+    resumoFaixas,
     slotDentro,
+    type Faixa,
 } from '@/lib/agenda';
 import { rotuloServicos, type Agendamento, type ProfissionalAgenda } from '@/services/agendamento.service';
+import { bloqueiaProfissional, type Bloqueio } from '@/services/bloqueio.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 function useAgora(ativo: boolean) {
     const [agora, setAgora] = useState(() => new Date());
@@ -34,15 +39,20 @@ export default function GradeDia({
     dia,
     profissionais,
     agendamentos,
+    bloqueios = [],
     onSlot,
     onAbrir,
+    onBloqueio,
 }: {
     dia: Date;
     profissionais: ProfissionalAgenda[];
     agendamentos: Agendamento[];
+    bloqueios?: Bloqueio[];
     onSlot: (profissionalId: number, inicio: Date) => void;
     onAbrir: (a: Agendamento) => void;
+    onBloqueio?: (b: Bloqueio) => void;
 }) {
+    const termos = useTermos();
     const limites = limitesGrade(
         profissionais.map((p) => p.disponibilidades),
         dia
@@ -68,7 +78,7 @@ export default function GradeDia({
                     const n = agendamentos.filter(
                         (a) => a.profissionalId === p.id && mesmoDia(a.inicio, dia) && ocupaHorario(a.status)
                     ).length;
-                    const iv = intervaloNoDia(p.disponibilidades, dia);
+                    const faixas = faixasNoDia(p.disponibilidades, dia);
                     return (
                         <div
                             key={p.id}
@@ -89,9 +99,9 @@ export default function GradeDia({
                                     <p className="truncate text-sm font-semibold" style={{ color: 'var(--ink)' }}>
                                         {p.nome}
                                     </p>
-                                    <p className="text-[11px]" style={{ color: 'var(--faint)' }}>
-                                        {iv
-                                            ? `${n} horário${n === 1 ? '' : 's'} · ${formatarMinutos(iv.inicio)}–${formatarMinutos(iv.fim)}`
+                                    <p className="truncate text-[11px]" style={{ color: 'var(--faint)' }}>
+                                        {faixas.length
+                                            ? `${n} ${termos.contagem('agendamento', n)} · ${resumoFaixas(faixas)}`
                                             : 'Folga'}
                                     </p>
                                 </div>
@@ -129,8 +139,10 @@ export default function GradeDia({
                         gradeInicio={limites.inicio}
                         linhaAgora={linhaAgora}
                         agendamentos={agendamentos.filter((a) => a.profissionalId === p.id && mesmoDia(a.inicio, dia))}
+                        bloqueios={bloqueios.filter((b) => bloqueiaProfissional(b, p.id))}
                         onSlot={onSlot}
                         onAbrir={onAbrir}
+                        onBloqueio={onBloqueio}
                     />
                 ))}
             </div>
@@ -145,8 +157,10 @@ function ColunaProfissional({
     gradeInicio,
     linhaAgora,
     agendamentos,
+    bloqueios,
     onSlot,
     onAbrir,
+    onBloqueio,
 }: {
     dia: Date;
     profissional: ProfissionalAgenda;
@@ -154,25 +168,32 @@ function ColunaProfissional({
     gradeInicio: number;
     linhaAgora: number | null;
     agendamentos: Agendamento[];
+    bloqueios: Bloqueio[];
     onSlot: (profissionalId: number, inicio: Date) => void;
     onAbrir: (a: Agendamento) => void;
+    onBloqueio?: (b: Bloqueio) => void;
 }) {
-    const iv = intervaloNoDia(profissional.disponibilidades, dia);
+    const faixas = faixasNoDia(profissional.disponibilidades, dia);
+    const gradeFim = gradeInicio + slots.length * SLOT_MIN;
+    const bloqueiosDoDia = bloqueios
+        .map((b) => ({ b, f: faixaNoDia(b, dia) }))
+        .filter((x): x is { b: Bloqueio; f: Faixa } => x.f !== null && x.f.fim > gradeInicio && x.f.inicio < gradeFim);
+    const bloqueado = (m: number) => bloqueiosDoDia.some(({ f }) => m < f.fim && m + SLOT_MIN > f.inicio);
     return (
         <div
             className="relative border-l"
             style={{ borderColor: 'var(--line)', height: slots.length * ROW_PX }}
         >
-            {!iv && (
+            {faixas.length === 0 && (
                 <div className="absolute inset-3 z-10 flex items-center justify-center rounded-lyra" style={{ background: 'var(--panel2)' }}>
                     <p className="text-xs font-medium" style={{ color: 'var(--faint)' }}>
                         Folga
                     </p>
                 </div>
             )}
-            {iv &&
+            {faixas.length > 0 &&
                 slots.map((m, i) => {
-                    const livre = slotDentro(iv, m);
+                    const livre = slotDentro(faixas, m) && !bloqueado(m);
                     return (
                         <button
                             key={m}
@@ -200,6 +221,15 @@ function ColunaProfissional({
                         </button>
                     );
                 })}
+            {bloqueiosDoDia.map(({ b, f }) => (
+                <BlocoBloqueio
+                    key={b.id}
+                    b={b}
+                    faixa={{ inicio: Math.max(f.inicio, gradeInicio), fim: Math.min(f.fim, gradeFim) }}
+                    gradeInicio={gradeInicio}
+                    onAbrir={onBloqueio}
+                />
+            ))}
             {agendamentos.map((a) => (
                 <BlocoAgendamento key={a.id} a={a} gradeInicio={gradeInicio} onAbrir={onAbrir} />
             ))}
@@ -220,6 +250,45 @@ function ColunaProfissional({
     );
 }
 
+function BlocoBloqueio({
+    b,
+    faixa,
+    gradeInicio,
+    onAbrir,
+}: {
+    b: Bloqueio;
+    faixa: Faixa;
+    gradeInicio: number;
+    onAbrir?: (b: Bloqueio) => void;
+}) {
+    const top = ((faixa.inicio - gradeInicio) / SLOT_MIN) * ROW_PX + 2;
+    const height = Math.max(ROW_PX / 2, ((faixa.fim - faixa.inicio) / SLOT_MIN) * ROW_PX - 4);
+    return (
+        <button
+            type="button"
+            disabled={!onAbrir}
+            onClick={() => onAbrir?.(b)}
+            className="absolute left-1 right-1 z-[5] overflow-hidden rounded-lg px-2.5 py-1.5 text-left disabled:cursor-default"
+            style={{
+                top,
+                height,
+                background:
+                    'repeating-linear-gradient(135deg, var(--panel2) 0 8px, color-mix(in oklab, var(--panel2) 55%, var(--card)) 8px 16px)',
+                border: '1px dashed var(--line)',
+            }}
+            title={b.motivo ?? 'Bloqueado'}
+        >
+            <p className="truncate text-[11px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                {b.motivo ?? 'Bloqueado'}
+            </p>
+            <p className="truncate font-mono text-[10px] tabular-nums" style={{ color: 'var(--faint)' }}>
+                {b.profissionalId === null ? 'Empresa · ' : ''}
+                {formatarMinutos(faixa.inicio)}–{formatarMinutos(faixa.fim)}
+            </p>
+        </button>
+    );
+}
+
 function BlocoAgendamento({
     a,
     gradeInicio,
@@ -235,40 +304,58 @@ function BlocoAgendamento({
     const height = Math.max(ROW_PX - 8, ((fim - ini) / SLOT_MIN) * ROW_PX - 6);
     const cancelado = !ocupaHorario(a.status);
     const alto = height >= ROW_PX * 1.4;
+    const preparo = cancelado ? 0 : a.intervaloAposMinutos ?? 0;
     return (
-        <button
-            type="button"
-            onClick={() => onAbrir(a)}
-            className="lyra-agenda-bloco absolute left-1.5 right-1.5 z-10 overflow-hidden rounded-lg px-2.5 py-1.5 text-left"
-            style={{
-                top,
-                height,
-                background: `color-mix(in oklab, ${corToken(a.profissionalCor)} 16%, var(--card))`,
-                border: `1px solid color-mix(in oklab, ${corToken(a.profissionalCor)} 35%, var(--line))`,
-                borderLeft: `3px solid ${corToken(a.profissionalCor)}`,
-                opacity: cancelado ? 0.5 : 1,
-                boxShadow: 'var(--lyra-shadow-sm)',
-            }}
-        >
-            <div className="flex items-start justify-between gap-1">
-                <p className="truncate text-xs font-semibold" style={{ color: 'var(--ink)' }}>
-                    {a.clienteNome}
-                </p>
-                <span
-                    className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ background: corStatus(a.status) }}
-                    title={labelStatus(a.status)}
-                />
-            </div>
-            <p className="truncate font-mono text-[10px] tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
-                {formatarHora(a.inicio)}
-                {alto ? ` – ${formatarHora(a.fim)}` : ''}
-            </p>
-            {alto && (
-                <p className="mt-0.5 truncate text-[11px]" style={{ color: 'var(--faint)' }}>
-                    {rotuloServicos(a)}
-                </p>
+        <>
+            {preparo > 0 && (
+                <div
+                    className="pointer-events-none absolute left-1.5 right-1.5 z-[9] rounded-b-lg px-2.5 text-[10px]"
+                    style={{
+                        top: top + height,
+                        height: Math.max(6, (preparo / SLOT_MIN) * ROW_PX),
+                        background: `repeating-linear-gradient(135deg, color-mix(in oklab, ${corToken(a.profissionalCor)} 10%, transparent) 0 6px, transparent 6px 12px)`,
+                        borderLeft: `3px dotted color-mix(in oklab, ${corToken(a.profissionalCor)} 55%, transparent)`,
+                        color: 'var(--faint)',
+                    }}
+                    title={`${preparo} min de preparo`}
+                >
+                    {preparo >= 15 ? 'preparo' : ''}
+                </div>
             )}
-        </button>
+            <button
+                type="button"
+                onClick={() => onAbrir(a)}
+                className="lyra-agenda-bloco absolute left-1.5 right-1.5 z-10 overflow-hidden rounded-lg px-2.5 py-1.5 text-left"
+                style={{
+                    top,
+                    height,
+                    background: `color-mix(in oklab, ${corToken(a.profissionalCor)} 16%, var(--card))`,
+                    border: `1px solid color-mix(in oklab, ${corToken(a.profissionalCor)} 35%, var(--line))`,
+                    borderLeft: `3px solid ${corToken(a.profissionalCor)}`,
+                    opacity: cancelado ? 0.5 : 1,
+                    boxShadow: 'var(--lyra-shadow-sm)',
+                }}
+            >
+                <div className="flex items-start justify-between gap-1">
+                    <p className="truncate text-xs font-semibold" style={{ color: 'var(--ink)' }}>
+                        {a.clienteNome}
+                    </p>
+                    <span
+                        className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: corStatus(a.status) }}
+                        title={labelStatus(a.status)}
+                    />
+                </div>
+                <p className="truncate font-mono text-[10px] tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
+                    {formatarHora(a.inicio)}
+                    {alto ? ` – ${formatarHora(a.fim)}` : ''}
+                </p>
+                {alto && (
+                    <p className="mt-0.5 truncate text-[11px]" style={{ color: 'var(--faint)' }}>
+                        {rotuloServicos(a)}
+                    </p>
+                )}
+            </button>
+        </>
     );
 }

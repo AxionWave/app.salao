@@ -4,32 +4,41 @@ import {
     corStatus,
     corToken,
     dataComMinutos,
+    faixaNoDia,
+    faixasNoDia,
     formatarDiaColuna,
     formatarHora,
-    intervaloNoDia,
+    formatarMinutos,
     labelStatus,
     mesmoDia,
     ocupaHorario,
 } from '@/lib/agenda';
 import { rotuloServicos, type Agendamento, type ProfissionalAgenda } from '@/services/agendamento.service';
+import { type Bloqueio } from '@/services/bloqueio.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 export default function GradeSemana({
     dias,
     profissionais,
     agendamentos,
+    bloqueios = [],
     onSlot,
     onAbrir,
+    onBloqueio,
     onDia,
     compact = false,
 }: {
     dias: Date[];
     profissionais: ProfissionalAgenda[];
     agendamentos: Agendamento[];
+    bloqueios?: Bloqueio[];
     onSlot: (profissionalId: number, inicio: Date) => void;
     onAbrir: (a: Agendamento) => void;
+    onBloqueio?: (b: Bloqueio) => void;
     onDia?: (dia: Date) => void;
     compact?: boolean;
 }) {
+    const termos = useTermos();
     const hoje = cloneDia(new Date());
     const unico = profissionais.length === 1 ? profissionais[0] : null;
 
@@ -46,7 +55,10 @@ export default function GradeSemana({
                         .sort((a, b) => a.inicio.localeCompare(b.inicio));
                     const ativos = doDia.filter((a) => ocupaHorario(a.status)).length;
                     const ehHoje = dia.getTime() === hoje.getTime();
-                    const iv = unico ? intervaloNoDia(unico.disponibilidades, dia) : null;
+                    const faixasUnico = unico ? faixasNoDia(unico.disponibilidades, dia) : [];
+                    const bloqueiosDoDia = bloqueios
+                        .map((b) => ({ b, f: faixaNoDia(b, dia) }))
+                        .filter((x) => x.f !== null);
                     return (
                         <div
                             key={dia.toISOString()}
@@ -81,11 +93,34 @@ export default function GradeSemana({
                                     </p>
                                 </div>
                                 <p className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
-                                    {ativos === 0 ? 'Livre' : `${ativos} horário${ativos === 1 ? '' : 's'}`}
+                                    {ativos === 0 ? 'Livre' : `${ativos} ${termos.contagem('agendamento', ativos)}`}
                                 </p>
                             </button>
                             <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2">
-                                {doDia.length === 0 && (
+                                {bloqueiosDoDia.map(({ b, f }) => (
+                                    <button
+                                        key={`b-${b.id}`}
+                                        type="button"
+                                        disabled={!onBloqueio}
+                                        onClick={() => onBloqueio?.(b)}
+                                        className="rounded-md border border-dashed px-2 py-1.5 text-left disabled:cursor-default"
+                                        style={{ borderColor: 'var(--line)', background: 'var(--panel2)' }}
+                                        title={b.motivo ?? 'Bloqueado'}
+                                    >
+                                        <p className="font-mono text-[11px] tabular-nums" style={{ color: 'var(--faint)' }}>
+                                            {f && f.inicio === 0 && f.fim === 24 * 60
+                                                ? 'Dia todo'
+                                                : f && `${formatarMinutos(f.inicio)}–${formatarMinutos(f.fim)}`}
+                                        </p>
+                                        <p className="truncate text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                                            {b.motivo ?? 'Bloqueado'}
+                                        </p>
+                                        <p className="truncate text-[11px]" style={{ color: 'var(--faint)' }}>
+                                            {b.profissionalNome ?? 'Empresa toda'}
+                                        </p>
+                                    </button>
+                                ))}
+                                {doDia.length === 0 && bloqueiosDoDia.length === 0 && (
                                     <button
                                         type="button"
                                         disabled={!onDia}
@@ -130,12 +165,11 @@ export default function GradeSemana({
                                     size="sm"
                                     variant="ghost"
                                     className="w-full"
-                                    disabled={Boolean(unico && !iv)}
+                                    disabled={Boolean(unico && faixasUnico.length === 0)}
                                     onClick={() => {
                                         const prof = unico ?? profissionais[0];
                                         if (!prof) return;
-                                        const intervalo = intervaloNoDia(prof.disponibilidades, dia);
-                                        const minutos = intervalo?.inicio ?? 9 * 60;
+                                        const minutos = faixasNoDia(prof.disponibilidades, dia)[0]?.inicio ?? 9 * 60;
                                         onSlot(prof.id, dataComMinutos(dia, minutos));
                                     }}
                                 >

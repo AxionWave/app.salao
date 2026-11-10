@@ -17,10 +17,10 @@ import {
     formatarHora,
     formatarMesAno,
     inicioDaSemana,
-    intervaloNoDia,
     isoData,
     labelStatus,
     mesmoDia,
+    minutosNoDia,
     ocupaHorario,
     partesDia,
     varianteStatus,
@@ -37,6 +37,7 @@ import {
     type Agendamento,
     type OpcoesAgenda,
 } from '@/services/agendamento.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 function saudacaoNome(): string {
     const user = authService.getStoredUserInfo();
@@ -48,6 +49,7 @@ function saudacaoNome(): string {
 
 export default function InicioPage() {
     const navigate = useNavigate();
+    const termos = useTermos();
     const temAgenda = authService.hasModulo(MODULO_AGENDA);
     const nome = saudacaoNome();
     const hoje = useMemo(() => cloneDia(new Date()), []);
@@ -57,7 +59,7 @@ export default function InicioPage() {
     const [diaAberto, setDiaAberto] = useState<Date | null>(null);
 
     const [filtroProf, setFiltroProf] = useState('');
-    const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [] });
+    const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [], fusoHorario: '' });
     const [itens, setItens] = useState<Agendamento[]>([]);
     const [carregando, setCarregando] = useState(temAgenda);
     const [erro, setErro] = useState('');
@@ -129,8 +131,7 @@ export default function InicioPage() {
     const ocupacao = useMemo(() => {
         let cap = 0;
         for (const p of profissionaisVisiveis) {
-            const iv = intervaloNoDia(p.disponibilidades, hoje);
-            if (iv) cap += iv.fim - iv.inicio;
+            cap += minutosNoDia(p.disponibilidades, hoje);
         }
         const usado = ativosHoje.reduce(
             (acc, a) => acc + Math.max(0, (new Date(a.fim).getTime() - new Date(a.inicio).getTime()) / 60000),
@@ -177,23 +178,23 @@ export default function InicioPage() {
     const acoes = [
         temAgenda && {
             to: filtroProf ? `/agenda?novo=1&profissionalId=${filtroProf}` : '/agenda?novo=1',
-            titulo: 'Novo horário',
-            detalhe: 'Marcar cliente na agenda',
+            titulo: termos.novo('agendamento'),
+            detalhe: `Marcar ${termos.um('cliente')} na agenda`,
         },
         authService.hasModulo(MODULO_CLIENTES) && {
             to: '/clientes?novo=1',
-            titulo: 'Novo cliente',
-            detalhe: 'Abrir ficha do salão',
+            titulo: termos.novo('cliente'),
+            detalhe: 'Abrir ficha',
         },
         authService.hasModulo(MODULO_SERVICOS) && {
             to: '/servicos?novo=1',
-            titulo: 'Novo serviço',
+            titulo: termos.novo('servico'),
             detalhe: 'Incluir no catálogo',
         },
         authService.hasModulo(MODULO_PROFISSIONAIS) && {
             to: '/profissionais?novo=1',
-            titulo: 'Nova cadeira',
-            detalhe: 'Profissional e expediente',
+            titulo: termos.novo('recurso'),
+            detalhe: 'Cadastro e expediente',
         },
         temAgenda && {
             to: filtroProf ? `/agenda?profissionalId=${filtroProf}` : '/agenda',
@@ -203,7 +204,7 @@ export default function InicioPage() {
     ].filter(Boolean) as { to: string; titulo: string; detalhe: string }[];
 
     return (
-        <PageLayout titulo="Início" subtitulo="Painel do salão">
+        <PageLayout titulo="Início" subtitulo="Painel do dia">
             <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--copper)' }}>
@@ -219,7 +220,7 @@ export default function InicioPage() {
                 {temAgenda && opcoes.profissionais.length > 0 && (
                     <div className="w-full sm:max-w-xs">
                         <label className="mb-1.5 block text-sm font-medium" style={{ color: 'var(--ink)' }}>
-                            Profissional
+                            {termos.recurso.singular}
                         </label>
                         <select
                             className="lyra-input"
@@ -227,7 +228,7 @@ export default function InicioPage() {
                             value={filtroProf}
                             onChange={(e) => setFiltroProf(e.target.value)}
                         >
-                            <option value="">Todas as cadeiras</option>
+                            <option value="">{`${termos.adj('recurso', 'Todos')} ${termos.adj('recurso', 'os')} ${termos.varios('recurso')}`}</option>
                             {opcoes.profissionais.map((p) => (
                                 <option key={p.id} value={p.id}>
                                     {p.nome}
@@ -246,10 +247,18 @@ export default function InicioPage() {
 
             {temAgenda && (
                 <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <CardKpi rotulo="Hoje" valor={String(ativosHoje.length)} detalhe="atendimentos na grade" />
+                    <CardKpi
+                        rotulo="Hoje"
+                        valor={String(ativosHoje.length)}
+                        detalhe={`${termos.contagem('agendamento', ativosHoje.length)} na grade`}
+                    />
                     <CardKpi rotulo="A confirmar" valor={String(aConfirmar)} detalhe="ainda em agendado" />
-                    <CardKpi rotulo="Em atendimento" valor={String(emAtendimento)} detalhe="na cadeira agora" />
-                    <CardKpi rotulo="Ocupação" valor={`${ocupacao}%`} detalhe="das cadeiras visíveis hoje" />
+                    <CardKpi rotulo="Em atendimento" valor={String(emAtendimento)} detalhe="acontecendo agora" />
+                    <CardKpi
+                        rotulo="Ocupação"
+                        valor={`${ocupacao}%`}
+                        detalhe={`${termos.adj('recurso', 'dos')} ${termos.varios('recurso')} ${termos.adj('recurso', 'visíveis')} hoje`}
+                    />
                 </div>
             )}
 
@@ -343,7 +352,7 @@ export default function InicioPage() {
                         )}
                         {temAgenda && !carregando && opcoes.profissionais.length === 0 && (
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                Nenhuma cadeira cadastrada. A grade aparece quando houver profissionais ativos.
+                                {`${termos.nenhum('recurso')} ${termos.adj('recurso', 'cadastrado')}. A grade aparece quando houver ${termos.varios('recurso')} ${termos.adj('recurso', 'ativos')}.`}
                             </p>
                         )}
                         {temAgenda && opcoes.profissionais.length > 0 && visaoCal === 'mes' && (
@@ -420,7 +429,7 @@ export default function InicioPage() {
                                 )}
                                 {!carregando && proximos.length === 0 && (
                                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                        Nenhum horário restante hoje.
+                                        {`${termos.nenhum('agendamento')} ${termos.adj('agendamento', 'restante')} hoje.`}
                                     </p>
                                 )}
                                 {proximos.map((a) => (
@@ -464,8 +473,8 @@ export default function InicioPage() {
                 eyebrow={partesDiaAberto?.semana ?? 'Agenda do dia'}
                 subtitulo={
                     horariosDoDiaAberto.length === 0
-                        ? 'Nenhum horário neste dia'
-                        : `${horariosDoDiaAberto.length} horário${horariosDoDiaAberto.length === 1 ? '' : 's'} na grade`
+                        ? `${termos.nenhum('agendamento')} neste dia`
+                        : `${horariosDoDiaAberto.length} ${termos.contagem('agendamento', horariosDoDiaAberto.length)} na grade`
                 }
                 onClose={fecharDia}
                 largura="72rem"

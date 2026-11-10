@@ -7,6 +7,7 @@ import { temModuloRaiz } from '@/constants/moduleCodes';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { Alert, Button } from '@/components/ui';
 import { MENSAGEM_SEM_ACESSO_LYRA, mensagemErroHttp } from '@/exceptions';
+import { useConfiguracaoEmpresa } from '@/contexts/TermosContext';
 
 type AlertaLogin = { titulo: string; texto: string };
 
@@ -17,6 +18,7 @@ const ALERTA_SEM_ACESSO: AlertaLogin = {
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const { recarregar: recarregarTermos } = useConfiguracaoEmpresa();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -56,6 +58,7 @@ export default function LoginPage() {
                 recusarSemAcesso();
                 return;
             }
+            void recarregarTermos();
             navigate('/inicio', { replace: true });
         } catch (err) {
             if (axios.isAxiosError(err) && err.response?.status === 401) {
@@ -86,9 +89,9 @@ export default function LoginPage() {
                         {APP_CONFIG.descricao}. Entre com a conta Enterprise. A equipe usa o perfil que o admin definiu no Lyra.
                     </p>
                     <ul className="mt-10 space-y-3 text-sm" style={{ color: 'var(--lyra-sidebar-muted)' }}>
-                        <li>Agenda, serviços e clientes no mesmo login</li>
+                        <li>Agenda, equipe e clientes no mesmo login</li>
                         <li>Permissões por perfil de acesso</li>
-                        <li>Operação do salão e da barbearia</li>
+                        <li>Ajustado ao vocabulário do seu negócio</li>
                     </ul>
                 </div>
                 <p className="text-xs opacity-70">

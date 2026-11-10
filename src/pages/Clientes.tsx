@@ -6,6 +6,7 @@ import { Alert, Badge, Button, Input, Modal, PhoneInput, Switch, Table, Textarea
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import { formatarTelefoneExibicao, telefoneValido } from '@/lib/telefone';
 import { clienteService, type Cliente, type SalvarCliente } from '@/services/cliente.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 const PAGE_SIZE = 10;
 
@@ -20,6 +21,7 @@ const vazio: SalvarCliente = {
 };
 
 export default function ClientesPage() {
+    const termos = useTermos();
     const [itens, setItens] = useState<Cliente[]>([]);
     const [total, setTotal] = useState(0);
     const [pagina, setPagina] = useState(1);
@@ -151,11 +153,11 @@ export default function ClientesPage() {
 
     return (
         <PageLayout
-            titulo="Clientes"
-            subtitulo="Fichas do salão"
+            titulo={termos.cliente.plural}
+            subtitulo="Fichas e contatos"
             acoes={
                 <Button size="sm" onClick={abrirNovo}>
-                    Novo cliente
+                    {termos.novo('cliente')}
                 </Button>
             }
         >
@@ -209,8 +211,8 @@ export default function ClientesPage() {
                 {vazioLista && (
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                         {busca.trim() || filtroAtivo !== 'todos'
-                            ? 'Nenhum cliente encontrado com esse filtro.'
-                            : 'Nenhuma ficha cadastrada. Use «Novo cliente» para começar.'}
+                            ? `${termos.nenhum('cliente')} ${termos.adj('cliente', 'encontrado')} com esse filtro.`
+                            : `Nenhuma ficha cadastrada. Use «${termos.novo('cliente')}» para começar.`}
                     </p>
                 )}
 
@@ -298,12 +300,12 @@ export default function ClientesPage() {
 
             <Modal
                 aberto={formAberto}
-                titulo={editando ? 'Editar cliente' : 'Novo cliente'}
+                titulo={editando ? termos.editar('cliente') : termos.novo('cliente')}
                 eyebrow="Ficha"
                 subtitulo={
                     editando
                         ? 'Altere contato ou observações. Ficha inativa continua editável.'
-                        : 'Quem o salão atende. Telefone único por empresa.'
+                        : `Quem sua empresa atende. Telefone único por empresa.`
                 }
                 onClose={fecharForm}
                 rodape={

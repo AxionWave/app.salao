@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAbrirNovoDaQuery } from '@/lib/queryNovo';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
-import ExpedienteAgenda from '@/components/ExpedienteAgenda';
+import ExpedienteAgenda, {
+    erroExpediente,
+    expedienteDeIntervalos,
+    expedientePadrao,
+    intervalosDoExpediente,
+    resumoExpediente,
+    type ExpedienteDia,
+} from '@/components/ExpedienteAgenda';
 import { Alert, Badge, Button, Input, Modal, PhoneInput, Switch, Table } from '@/components/ui';
 import { authService } from '@core/services';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
@@ -11,22 +18,12 @@ import { pessoaService, type Pessoa } from '@/services/pessoa.service';
 import { perfilAcessoService, ehClienteAdmin, ehFuncionarioLyra, type PerfilAcesso } from '@/services/perfilAcesso.service';
 import {
     profissionalService,
-    type Intervalo,
     type Profissional,
     type SalvarProfissional,
 } from '@/services/profissional.service';
+import { useTermos } from '@/contexts/TermosContext';
 
 const PAGE_SIZE = 10;
-const DIAS = [
-    { id: 1, label: 'Seg' },
-    { id: 2, label: 'Ter' },
-    { id: 3, label: 'Qua' },
-    { id: 4, label: 'Qui' },
-    { id: 5, label: 'Sex' },
-    { id: 6, label: 'Sáb' },
-    { id: 0, label: 'Dom' },
-] as const;
-
 const CORES = [
     { id: 'copper', label: 'Cobre' },
     { id: 'ember', label: 'Âmbar' },
@@ -36,46 +33,6 @@ const CORES = [
 ] as const;
 
 type FiltroAtivo = 'todos' | 'ativos' | 'inativos';
-type DiaForm = { ativo: boolean; inicio: string; fim: string };
-
-const padraoDias = (): Record<number, DiaForm> => ({
-    1: { ativo: true, inicio: '09:00', fim: '19:00' },
-    2: { ativo: true, inicio: '09:00', fim: '19:00' },
-    3: { ativo: true, inicio: '09:00', fim: '19:00' },
-    4: { ativo: true, inicio: '09:00', fim: '19:00' },
-    5: { ativo: true, inicio: '09:00', fim: '19:00' },
-    6: { ativo: true, inicio: '09:00', fim: '19:00' },
-    0: { ativo: false, inicio: '09:00', fim: '19:00' },
-});
-
-function intervalosParaDias(lista: Intervalo[]): Record<number, DiaForm> {
-    const base = padraoDias();
-    for (const d of Object.keys(base)) {
-        base[Number(d)] = { ...base[Number(d)], ativo: false };
-    }
-    for (const i of lista) {
-        base[i.diaSemana] = { ativo: true, inicio: i.inicio.slice(0, 5), fim: i.fim.slice(0, 5) };
-    }
-    return base;
-}
-
-function diasParaIntervalos(dias: Record<number, DiaForm>): Intervalo[] {
-    return DIAS.filter((d) => dias[d.id]?.ativo).map((d) => ({
-        diaSemana: d.id,
-        inicio: dias[d.id].inicio,
-        fim: dias[d.id].fim,
-    }));
-}
-
-function resumoHorario(lista: Intervalo[]): string {
-    if (!lista.length) return 'Sem expediente';
-    const iguais = lista.every((i) => i.inicio === lista[0].inicio && i.fim === lista[0].fim);
-    if (iguais && lista.length === 6 && !lista.some((i) => i.diaSemana === 0)) {
-        return `Seg–Sáb ${lista[0].inicio.slice(0, 5)}–${lista[0].fim.slice(0, 5)}`;
-    }
-    return `${lista.length} dia${lista.length === 1 ? '' : 's'}`;
-}
-
 function formatarCpf(digits: string): string {
     const d = somenteDigitos(digits).slice(0, 11);
     if (d.length <= 3) return d;
@@ -105,6 +62,7 @@ function isoDate(valor?: string): string {
 }
 
 export default function ProfissionaisPage() {
+    const termos = useTermos();
     const empresaId = Number(authService.getStoredUserInfo()?.empresaId || 0);
     const [itens, setItens] = useState<Profissional[]>([]);
     const [total, setTotal] = useState(0);
@@ -127,7 +85,7 @@ export default function ProfissionaisPage() {
     const [perfisErro, setPerfisErro] = useState('');
     const [cor, setCor] = useState('copper');
     const [ativo, setAtivo] = useState(true);
-    const [dias, setDias] = useState<Record<number, DiaForm>>(padraoDias);
+    const [dias, setDias] = useState<Record<number, ExpedienteDia>>(expedientePadrao);
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
 
@@ -140,7 +98,8 @@ export default function ProfissionaisPage() {
         validarCpf(cpf) &&
         nascimento.length > 0 &&
         telefoneValido(telefone) &&
-        diasParaIntervalos(dias).length > 0 &&
+        intervalosDoExpediente(dias).length > 0 &&
+        !erroExpediente(dias) &&
         loginOk;
 
     const carregar = useCallback(async () => {
@@ -215,7 +174,7 @@ export default function ProfissionaisPage() {
         setPerfilId('');
         setCor('copper');
         setAtivo(true);
-        setDias(padraoDias());
+        setDias(expedientePadrao());
         setFormErro('');
         setFormAberto(true);
     };
@@ -227,7 +186,7 @@ export default function ProfissionaisPage() {
         setNome(p.nome);
         setCor(p.cor);
         setAtivo(p.ativo);
-        setDias(intervalosParaDias(p.disponibilidades));
+        setDias(expedienteDeIntervalos(p.disponibilidades));
         setFormErro('');
         setFormAberto(true);
         if (p.pessoaId) {
@@ -314,7 +273,7 @@ export default function ProfissionaisPage() {
                 pessoaId,
                 cor,
                 ativo,
-                disponibilidades: diasParaIntervalos(dias),
+                disponibilidades: intervalosDoExpediente(dias),
             };
             if (editando) {
                 await profissionalService.atualizar(editando.id, payload);
@@ -357,11 +316,11 @@ export default function ProfissionaisPage() {
 
     return (
         <PageLayout
-            titulo="Profissionais"
+            titulo={termos.recurso.plural}
             subtitulo="Equipe"
             acoes={
                 <Button size="sm" onClick={abrirNovo}>
-                    Novo profissional
+                    {termos.novo('recurso')}
                 </Button>
             }
         >
@@ -415,8 +374,8 @@ export default function ProfissionaisPage() {
                 {vazioLista && (
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                         {busca.trim() || filtroAtivo !== 'todos'
-                            ? 'Nenhum profissional encontrado com esse filtro.'
-                            : 'Nenhum profissional cadastrado. Use «Novo profissional» para começar.'}
+                            ? `${termos.nenhum('recurso')} ${termos.adj('recurso', 'encontrado')} com esse filtro.`
+                            : `${termos.nenhum('recurso')} ${termos.adj('recurso', 'cadastrado')}. Use «${termos.novo('recurso')}» para começar.`}
                     </p>
                 )}
 
@@ -444,7 +403,7 @@ export default function ProfissionaisPage() {
                                                 {p.nome}
                                             </span>
                                         </Table.Cell>
-                                        <Table.Cell>{resumoHorario(p.disponibilidades)}</Table.Cell>
+                                        <Table.Cell>{resumoExpediente(p.disponibilidades)}</Table.Cell>
                                         <Table.Cell>
                                             <Badge variant={p.ativo ? 'ok' : 'faint'} size="sm">
                                                 {p.ativo ? 'Ativo' : 'Inativo'}
@@ -500,12 +459,12 @@ export default function ProfissionaisPage() {
 
             <Modal
                 aberto={formAberto}
-                titulo={editando ? 'Editar profissional' : 'Novo profissional'}
+                titulo={editando ? termos.editar('recurso') : termos.novo('recurso')}
                 eyebrow="Equipe"
                 subtitulo={
                     editando
                         ? 'Dados pessoais ficam na ficha da pessoa. Aqui, expediente e cor da agenda.'
-                        : 'Cria a pessoa e o profissional no Lyra. Padrão: seg–sáb 09:00–19:00.'
+                        : `Cria a pessoa e o cadastro de ${termos.um('recurso')} no Lyra. Padrão: seg–sáb 09:00–19:00.`
                 }
                 variante="lateral"
                 largura="34rem"
