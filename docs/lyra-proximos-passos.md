@@ -1,52 +1,167 @@
-# Lyra — Próximos passos
+# Lyra — Próximas etapas de evolução
 
-Atualizado em 10/11/2026. Os códigos `R-xx` são os do [relatório de correções](./lyra-relatorio-correcoes.md), onde estão o local no código e o detalhe de cada problema.
+Atualizado em 10/11/2026. Os códigos `R-xx` são os do [relatório de correções](./lyra-relatorio-correcoes.md).
 
-## 1. Confirmar com o time do Core (antes de vender)
+A ordem das etapas segue as dependências: cada uma usa o que a anterior entrega. O agendamento online, por exemplo, precisa da trava contra horário duplicado (Etapa 0) e do envio de mensagens (Etapa 1) para o código de acesso e a confirmação.
 
-- [ ] O `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`). Trocar a chave exige mudar no oAuth e na API ao mesmo tempo.
-- [ ] O Core confere o token em `definir-senha-inicial` e só troca a senha do dono do token (R-05).
-- [ ] Ao salvar um perfil, o Core substitui a lista inteira de módulos (R-03). Se sim, conferir que perfis antigos salvos antes da correção ainda têm o módulo principal e o de Profissionais.
-- [ ] Editar a pessoa do profissional sem `senha` não altera a senha atual (R-04).
-- [ ] A imagem Docker da API tem `tzdata`; testar com uma empresa em Manaus (R-25).
+| Etapa | Entrega | Depende de |
+|---|---|---|
+| 0 | Base sólida: pendências, trava de horário, testes no CI | — |
+| 1 | Notificações ao vivo: painel, e-mail e WhatsApp | 0 |
+| 2 | Portal do cliente: cadastro, login e agendamento online | 0 e 1 |
+| 3 | Menos faltas: confirmação, lembretes, lista de espera | 1 e 2 |
+| 4 | Financeiro: sinal via Pix, caixa, comissão | 2 |
+| 5 | Gestão: relatórios, indicadores, várias unidades | 4 |
+| 6 | Clínicas: ficha de atendimento e anexos | 0 |
 
-## 2. Agenda — corrigir nas próximas entregas
+---
 
-- [ ] **R-17 — Dois agendamentos no mesmo horário.** Travar por profissional na transação (`pg_advisory_xact_lock`) ou usar constraint de exclusão no Postgres. Obrigatório antes do agendamento online.
-- [ ] **R-10 — Desativar profissional com agendamentos futuros.** Avisar com a lista, manter na grade quem ainda tem agendamentos e desligar o login.
-- [ ] **R-14 — Cancelado cobre o horário na grade.** Esconder cancelados por padrão (com filtro) ou desenhá-los sem bloquear o clique.
-- [ ] **R-30 — Slot dentro do tempo de preparo parece livre.** Desabilitar como já é feito com os bloqueios.
-- [ ] **R-19 — "Não compareceu" ocupa o horário.** Decidir com o negócio se libera o horário; se sim, ajustar `GarantirLivreAsync`, `HorariosLivresAsync` e `ocupaHorario`.
-- [ ] **R-11 — Mudar expediente ou fuso esconde agendamentos.** Avisar ao salvar e incluir os agendamentos no cálculo dos limites da grade.
-- [ ] **R-31 — Ocupação não desconta bloqueios.** Subtrair os minutos bloqueados da capacidade (Agenda e Início).
+## Etapa 0 — Base sólida
 
-## 3. Cadastros e perfis
+Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma regressão.
 
-- [ ] **R-22 — Serviço vinculado só a profissionais inativos.** Mostrar os inativos em "Quem atende", com aviso de que o serviço não pode ser agendado.
-- [ ] **R-29 — Lacunas restantes:**
-  - [ ] `PerfisController` aceita o módulo principal: qualquer usuário do Lyra lista os perfis de acesso. Restringir a quem gerencia perfis.
-  - [ ] Pedir confirmação ao remover bloqueio e ao excluir perfil.
-  - [ ] Decidir se o telefone continua único por cliente (familiares com o mesmo telefone são comuns em clínicas).
+**Confirmar com o time do Core**
+- [ ] O `JWT_SECRET` de produção não é o antigo valor de exemplo (trocar exige mudar no oAuth e na API ao mesmo tempo).
+- [ ] O Core confere o token em `definir-senha-inicial` (R-05) e substitui a lista de módulos ao salvar perfil (R-03).
+- [ ] Editar a pessoa sem `senha` não altera a senha atual (R-04).
+- [ ] A imagem Docker da API tem `tzdata` (R-25).
 
-## 4. Sessão, fuso e acabamento
+**Agenda**
+- [ ] **R-17 — Trava contra dois agendamentos no mesmo horário** (`pg_advisory_xact_lock` por profissional ou constraint de exclusão). Obrigatório antes do portal.
+- [ ] R-10 desativar profissional com agendamentos futuros · R-14 cancelado cobrindo o horário · R-30 slot dentro do preparo · R-19 "não compareceu" ocupando horário · R-11 expediente que esconde agendamentos · R-31 ocupação sem descontar bloqueios.
 
-- [ ] **R-23 — Terminologia de outra sessão.** Limpar o cache `lyra-terminologia` no logout e recarregar os nomes depois do primeiro acesso.
-- [ ] **R-24 — Painel não vira o dia.** Recalcular "hoje" ao voltar o foco da janela ou a cada poucos minutos.
-- [ ] **R-28 — Sessão expirada redireciona para `/login` fixo.** Usar `import.meta.env.BASE_URL`.
-- [ ] **R-26 — Grade no fuso do computador.** Calcular e formatar no fuso da empresa (por exemplo, `date-fns-tz`). Só importa se houver clientes atendidos de outro fuso.
+**Cadastros, sessão e acabamento**
+- [ ] R-22 serviço só com profissionais inativos · R-29 (perfis listados por qualquer usuário, confirmações de exclusão, telefone único) · R-23 cache de termos no logout · R-24 painel que não vira o dia · R-28 redirecionamento da sessão · R-26 fuso da empresa na grade.
 
-## 5. Validar com usuário real (homolog)
+**Qualidade**
+- [ ] Testes unitários do `AgendamentoService` (conflito, expediente, preparo, bloqueio, status) e um e2e de API contra um Postgres descartável, rodando no GitHub Actions antes do deploy.
+- [ ] Logs estruturados e alerta de erro (Sentry ou Seq) na API e no front.
+- [ ] Validar com uma conta real no homolog: horários livres com pausa, preparo e bloqueio; configuração da empresa; perfil só com "Agendar".
 
-As regras novas foram cobertas por testes de API com uma empresa falsa. Falta passar com uma conta real, no navegador:
+---
 
-- [ ] Horários livres com expediente com pausa, preparo e bloqueios.
-- [ ] Recusas por expediente, bloqueio, preparo e "não atende".
-- [ ] Salvar a configuração da empresa (nomes e fuso).
-- [ ] Modal de bloqueio, faixas de expediente, "Quem atende", chips de horários livres e busca de cliente na agenda.
-- [ ] Perfil só com "Agendar": consegue buscar cliente e marcar, mas não abre Clientes.
+## Etapa 1 — Notificações ao vivo
 
-## 6. Depois (evolução do produto)
+### O que cada um recebe
 
-- [ ] Agendamento online pelo cliente (depende de R-17).
-- [ ] Lembretes de horário (WhatsApp ou e-mail) e confirmação pelo cliente.
-- [ ] Testes automatizados no CI: unitários do `AgendamentoService` e um e2e de API contra um banco descartável.
+| Evento | Profissional / recepção | Cliente |
+|---|---|---|
+| Agendamento criado (pela equipe ou online) | Aviso na hora no painel e no celular | E-mail e WhatsApp com data, serviço, endereço e botões **Confirmar** / **Cancelar** |
+| Cliente confirmou ou cancelou | Aviso na hora; a grade se atualiza sozinha | Mensagem de confirmação do que fez |
+| Remarcado | Aviso para o profissional antigo e o novo | E-mail e WhatsApp com o novo horário |
+| Cancelado pela equipe | — | E-mail e WhatsApp, com link para remarcar |
+| Lembrete (24 h e 2 h antes, configurável) | Resumo do dia às 7h | WhatsApp com botões **Confirmo** / **Preciso remarcar** |
+| Cliente atrasado ou chegou | Aviso para o profissional | — |
+| Bloqueio criado em cima de agendamentos | Lista dos afetados | Mensagem pedindo para remarcar |
+
+### Como funciona por dentro
+
+```
+Agenda (API) ──grava na mesma transação──▶ tabela notificacao_pendente (outbox)
+                                                  │
+                                    Worker em segundo plano (HostedService)
+                                    ├── Painel ao vivo ...... SignalR (WebSocket)
+                                    ├── Celular/navegador ... Web Push (PWA)
+                                    ├── E-mail .............. Amazon SES ou Resend
+                                    └── WhatsApp ............ WhatsApp Cloud API (Meta)
+                                                  │
+                         Respostas (botões, links) ──▶ webhook ──▶ atualiza o status
+                                                                   └──▶ SignalR avisa a equipe
+```
+
+- **Outbox:** a notificação é gravada na mesma transação do agendamento. Se o e-mail ou o WhatsApp estiverem fora do ar, nada se perde: o worker tenta de novo com espera crescente e registra o resultado de cada envio (enviado, entregue, lido, falhou).
+- **Ao vivo para a equipe:** SignalR na própria API, autenticado pelo mesmo JWT, com um grupo por empresa e outro por profissional. A Agenda e o Início deixam de precisar de recarregar: um agendamento novo aparece na grade de todo mundo na hora.
+- **Com o app fechado:** o front vira PWA ("instalar no celular") e usa Web Push. O profissional recebe a notificação no celular sem precisar de app na loja.
+- **Lembretes agendados:** Hangfire (com Postgres) ou Quartz. Ao criar ou remarcar, agenda os lembretes; ao cancelar, remove. Precisa respeitar o fuso da empresa.
+- **WhatsApp:** a Cloud API oficial da Meta. Mensagens iniciadas pela empresa exigem **modelos aprovados** pela Meta (confirmação, lembrete, cancelamento), e cada conversa tem custo. Os botões **Confirmo** / **Remarcar** voltam pelo webhook. Evitar APIs não oficiais: o número pode ser banido.
+- **E-mail:** Amazon SES (mais barato) ou Resend (mais simples), com domínio próprio e SPF/DKIM configurados para não cair no spam. O e-mail leva um anexo `.ics` para o cliente pôr na agenda do celular.
+- **Links de confirmação:** um token assinado e de uso único por agendamento (`/c/{token}`), que funciona sem login.
+
+### Configuração por empresa
+- [ ] Ligar e desligar cada evento e cada canal, e definir os horários dos lembretes.
+- [ ] Textos com variáveis (`{cliente}`, `{servico}`, `{data}`, `{hora}`, `{endereco}`) e os nomes do segmento (sessão, consulta, horário).
+- [ ] Número de WhatsApp próprio da empresa (cada uma conecta o seu) ou o número da Lumen como padrão.
+- [ ] Limite de mensagens por plano, porque WhatsApp tem custo.
+
+### LGPD
+- [ ] Consentimento do cliente para receber WhatsApp e e-mail, guardado com data e origem.
+- [ ] Link de "não quero mais receber" em todas as mensagens; respeitar isso no worker.
+- [ ] Histórico de envios por cliente, visível na ficha.
+
+### Entregas, em ordem
+1. [ ] Outbox, worker e histórico de envios.
+2. [ ] SignalR: grade e Início ao vivo e o sino de notificações no painel.
+3. [ ] E-mail: confirmação, remarcação, cancelamento, com `.ics` e link de confirmar.
+4. [ ] WhatsApp: modelos aprovados, envio, webhook dos botões.
+5. [ ] Lembretes agendados e resumo do dia do profissional.
+6. [ ] PWA e Web Push.
+7. [ ] Tela de configuração das notificações e textos.
+
+---
+
+## Etapa 2 — Portal do cliente
+
+O cliente entra, se cadastra e marca sozinho.
+
+### Acesso
+- **Endereço por empresa:** `lyra.lumensoft.com.br/{empresa}`, com logo, cores, endereço, serviços e profissionais. É o link que a empresa põe no Instagram e no Google.
+- **Login sem senha:** o cliente informa o telefone ou o e-mail e recebe um código de 6 dígitos por WhatsApp ou e-mail (usa a Etapa 1). Mais simples para o público e sem senha para esquecer.
+- **Conta separada da equipe:** o cliente não é usuário do Core. Criar uma conta de cliente no próprio Lyra, com token próprio e escopo só do portal, ligada à ficha existente pelo telefone ou pelo e-mail. Assim um cliente nunca chega às rotas da equipe.
+- **Uma conta, várias empresas:** a mesma pessoa pode ser cliente de mais de uma empresa da Lumen; cada empresa vê só a sua ficha.
+- **Dependentes:** marcar para filho ou pai com o mesmo login (resolve o telefone único de R-29).
+
+### Agendamento online
+- [ ] Fluxo: serviço → profissional (ou "qualquer um") → dia → horário livre (usa a rota de horários livres que já existe) → confirmar.
+- [ ] Regras por empresa: antecedência mínima (ex.: 2 h), janela máxima (ex.: 60 dias), limite de agendamentos em aberto por cliente, prazo para cancelar ou remarcar sozinho.
+- [ ] Escolher quais serviços e profissionais aparecem online e se o agendamento online já entra confirmado ou fica "a confirmar" pela recepção.
+- [ ] Proteção: limite de tentativas por IP e por telefone, captcha no cadastro e a trava de R-17.
+
+### Área do cliente
+- [ ] Próximos agendamentos, com botões de cancelar, remarcar e adicionar à agenda.
+- [ ] Histórico, dados pessoais e preferências de notificação.
+- [ ] "Marcar de novo" com o mesmo serviço e profissional.
+
+---
+
+## Etapa 3 — Menos faltas e mais encaixes
+
+- [ ] **Confirmação obrigatória:** sem confirmação até X horas antes, a recepção recebe aviso (e a empresa pode liberar o horário automaticamente).
+- [ ] **Lista de espera:** o cliente pede um dia ou um profissional cheio. Quando alguém cancela, os da lista recebem WhatsApp e o primeiro que aceitar fica com o horário.
+- [ ] **Agendamento recorrente:** "toda terça às 10h por 8 semanas" (terapias, fisioterapia, pacotes).
+- [ ] **Retorno:** o serviço sugere quando voltar (ex.: 30 dias) e o cliente recebe um convite para marcar.
+- [ ] **Avaliação pós-atendimento:** nota e comentário; nota baixa avisa o gestor.
+- [ ] Indicador de faltas por cliente, com regra opcional de exigir sinal para quem falta muito.
+
+---
+
+## Etapa 4 — Financeiro
+
+- [ ] **Sinal no agendamento online via Pix** (Mercado Pago, Asaas ou Efí), com devolução conforme a regra de cancelamento.
+- [ ] **Fechar atendimento:** serviços, produtos, desconto e forma de pagamento; gera o recibo.
+- [ ] **Pacotes e planos:** "10 sessões", com saldo debitado a cada atendimento.
+- [ ] **Comissão por profissional:** percentual por serviço e relatório do período.
+- [ ] **Caixa do dia:** entradas por forma de pagamento e fechamento.
+- [ ] Nota fiscal de serviço (NFS-e) por integração, em uma fase posterior.
+
+---
+
+## Etapa 5 — Gestão
+
+- [ ] Relatórios: faturamento, ocupação, faltas, serviços e profissionais mais procurados, clientes novos e clientes que sumiram.
+- [ ] Painel do dono com comparação entre meses.
+- [ ] Exportar para Excel.
+- [ ] Várias unidades na mesma empresa, com profissionais que atendem em mais de uma.
+- [ ] Sincronização com o Google Agenda do profissional.
+- [ ] Registro de quem fez o quê (auditoria) em agendamentos, cadastros e perfis.
+
+---
+
+## Etapa 6 — Clínicas e consultórios
+
+Para o segmento de saúde, com cuidado extra de LGPD (dado sensível).
+
+- [ ] Ficha de atendimento por sessão (evolução), com modelos por especialidade.
+- [ ] Anexos (exames, fotos de antes e depois) em armazenamento privado.
+- [ ] Anamnese que o cliente preenche no portal antes da primeira consulta.
+- [ ] Acesso restrito à ficha: só o profissional que atendeu e quem a empresa autorizar, com registro de cada acesso.
+- [ ] Termo de consentimento assinado no portal.
