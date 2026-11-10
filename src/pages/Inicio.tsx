@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/layout/PageLayout';
 import GradeDia from '@/components/agenda/GradeDia';
@@ -64,6 +64,7 @@ export default function InicioPage() {
     const [itens, setItens] = useState<Agendamento[]>([]);
     const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
     const [carregando, setCarregando] = useState(temAgenda);
+    const pedidoAtual = useRef(0);
     const [erro, setErro] = useState('');
 
     const diasSemana = useMemo(() => {
@@ -89,6 +90,7 @@ export default function InicioPage() {
             setCarregando(false);
             return;
         }
+        const pedido = ++pedidoAtual.current;
         setCarregando(true);
         setErro('');
         try {
@@ -107,15 +109,17 @@ export default function InicioPage() {
                     })
                     .catch(() => [] as Bloqueio[]),
             ]);
+            if (pedido !== pedidoAtual.current) return;
             setOpcoes(ops);
             setItens(lista.items);
             setBloqueios(blq);
         } catch (e) {
+            if (pedido !== pedidoAtual.current) return;
             setErro(mensagemErroHttp(e, 'Não foi possível falar com a API Lyra. Suba a api.salao.'));
             setItens([]);
             setBloqueios([]);
         } finally {
-            setCarregando(false);
+            if (pedido === pedidoAtual.current) setCarregando(false);
         }
     }, [temAgenda, periodo.de, periodo.ate, filtroProf]);
 
@@ -260,14 +264,18 @@ export default function InicioPage() {
                 <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <CardKpi
                         rotulo="Hoje"
-                        valor={String(ativosHoje.length)}
+                        valor={carregando ? '…' : String(ativosHoje.length)}
                         detalhe={`${termos.contagem('agendamento', ativosHoje.length)} na grade`}
                     />
-                    <CardKpi rotulo="A confirmar" valor={String(aConfirmar)} detalhe="ainda em agendado" />
-                    <CardKpi rotulo="Em atendimento" valor={String(emAtendimento)} detalhe="acontecendo agora" />
+                    <CardKpi rotulo="A confirmar" valor={carregando ? '…' : String(aConfirmar)} detalhe="ainda em agendado" />
+                    <CardKpi
+                        rotulo="Em atendimento"
+                        valor={carregando ? '…' : String(emAtendimento)}
+                        detalhe="acontecendo agora"
+                    />
                     <CardKpi
                         rotulo="Ocupação"
-                        valor={`${ocupacao}%`}
+                        valor={carregando ? '…' : `${ocupacao}%`}
                         detalhe={`${termos.adj('recurso', 'dos')} ${termos.varios('recurso')} ${termos.adj('recurso', 'visíveis')} hoje`}
                     />
                 </div>
@@ -356,20 +364,28 @@ export default function InicioPage() {
                                 Sem permissão de agenda neste perfil.
                             </p>
                         )}
-                        {temAgenda && carregando && opcoes.profissionais.length === 0 && (
-                            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        {temAgenda && carregando && (
+                            <div
+                                className="flex min-h-[18rem] items-center justify-center gap-2 text-sm"
+                                style={{ color: 'var(--muted-foreground)' }}
+                                role="status"
+                            >
+                                <span
+                                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                    aria-hidden
+                                />
                                 Carregando a agenda…
-                            </p>
+                            </div>
                         )}
                         {temAgenda && !carregando && opcoes.profissionais.length === 0 && (
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                                 {`${termos.nenhum('recurso')} ${termos.adj('recurso', 'cadastrado')}. A grade aparece quando houver ${termos.varios('recurso')} ${termos.adj('recurso', 'ativos')}.`}
                             </p>
                         )}
-                        {temAgenda && opcoes.profissionais.length > 0 && visaoCal === 'mes' && (
+                        {temAgenda && !carregando && opcoes.profissionais.length > 0 && visaoCal === 'mes' && (
                             <GradeMes mes={cursor} dias={diasMes} agendamentos={itens} bloqueios={bloqueios} onDia={abrirDia} />
                         )}
-                        {temAgenda && opcoes.profissionais.length > 0 && visaoCal === 'semana' && (
+                        {temAgenda && !carregando && opcoes.profissionais.length > 0 && visaoCal === 'semana' && (
                             <GradeSemana
                                 compact
                                 dias={diasSemana}
@@ -444,7 +460,7 @@ export default function InicioPage() {
                                         {`${termos.nenhum('agendamento')} ${termos.adj('agendamento', 'restante')} hoje.`}
                                     </p>
                                 )}
-                                {proximos.map((a) => (
+                                {!carregando && proximos.map((a) => (
                                     <button
                                         key={a.id}
                                         type="button"

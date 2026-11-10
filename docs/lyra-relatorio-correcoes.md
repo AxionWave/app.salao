@@ -3,7 +3,7 @@
 Data: 10/11/2026. Escopo: `api.salao` (.NET 8) e `app.salao` (React), incluindo as Fases 1 e 2 ainda não commitadas.
 
 **Como foi feito:** leitura do código (backend e front) e testes de API com uma empresa falsa (999999), sem gravar dados reais. As telas **não** foram testadas no navegador com um usuário real, e o Core/Gateway (login, pessoas, perfis) não está nestes repositórios. Itens que dependem deles estão marcados **"a confirmar"**.
-Cada item tem um código `R-xx`, usado no [plano de testes](./lyra-plano-de-testes.md) para indicar os casos que devem falhar até a correção.
+Cada item tem um código `R-xx`. O que falta fazer está em [próximos passos](./lyra-proximos-passos.md).
 
 ## Resumo
 
@@ -17,7 +17,7 @@ Prioridade sugerida: **R-01, R-02** (segurança) → **R-03, R-06, R-07** (acess
 
 ## Situação em 10/11/2026
 
-**Corrigidos:** R-01, R-02, R-03, R-04, R-05, R-06, R-07, R-08, R-09, R-12, R-13, R-15, R-16, R-18, R-20, R-21, R-27, e o aviso de bloqueio de R-29 (conta só agendamentos em aberto). O teste de API `api.salao/tests/e2e-agenda.ps1` cobre os itens do backend (114 de 114 passando).
+**Corrigidos:** R-01, R-02, R-03, R-04, R-05, R-06, R-07, R-08, R-09, R-12, R-13, R-15, R-16, R-18, R-20, R-21, R-27, e o aviso de bloqueio de R-29 (conta só agendamentos em aberto). Os itens do backend foram validados por testes de API (114 de 114 passando).
 
 O que mudou para quem usa:
 - A API não sobe em produção sem `JWT_SECRET` e ignora os cabeçalhos `X-Empresa-Id`, `X-User-Roles` e afins.
@@ -207,7 +207,7 @@ O que mudou para quem usa:
 
 ## O que ainda não foi testado de ponta a ponta
 
-Estes itens passaram em compilação e em testes de API com dados vazios, mas precisam do plano de testes com um usuário real:
+Estes itens passaram em compilação e em testes de API com dados vazios, mas precisam ser validados com um usuário real:
 
 - O cálculo dos horários livres com dados reais: expediente com pausa, preparo e bloqueios.
 - A recusa por expediente, bloqueio, preparo e "não atende".
