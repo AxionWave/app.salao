@@ -37,6 +37,7 @@ import {
     type Agendamento,
     type OpcoesAgenda,
 } from '@/services/agendamento.service';
+import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
 
 function saudacaoNome(): string {
@@ -61,6 +62,7 @@ export default function InicioPage() {
     const [filtroProf, setFiltroProf] = useState('');
     const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [], fusoHorario: '' });
     const [itens, setItens] = useState<Agendamento[]>([]);
+    const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
     const [carregando, setCarregando] = useState(temAgenda);
     const [erro, setErro] = useState('');
 
@@ -90,19 +92,28 @@ export default function InicioPage() {
         setCarregando(true);
         setErro('');
         try {
-            const [ops, lista] = await Promise.all([
+            const [ops, lista, blq] = await Promise.all([
                 agendamentoService.opcoes(),
                 agendamentoService.listar({
                     de: periodo.de.toISOString(),
                     ate: periodo.ate.toISOString(),
                     profissionalId: filtroProf ? Number(filtroProf) : undefined,
                 }),
+                bloqueioService
+                    .listar({
+                        de: periodo.de.toISOString(),
+                        ate: periodo.ate.toISOString(),
+                        profissionalId: filtroProf ? Number(filtroProf) : undefined,
+                    })
+                    .catch(() => [] as Bloqueio[]),
             ]);
             setOpcoes(ops);
             setItens(lista.items);
+            setBloqueios(blq);
         } catch (e) {
             setErro(mensagemErroHttp(e, 'Não foi possível falar com a API Lyra. Suba a api.salao.'));
             setItens([]);
+            setBloqueios([]);
         } finally {
             setCarregando(false);
         }
@@ -356,7 +367,7 @@ export default function InicioPage() {
                             </p>
                         )}
                         {temAgenda && opcoes.profissionais.length > 0 && visaoCal === 'mes' && (
-                            <GradeMes mes={cursor} dias={diasMes} agendamentos={itens} onDia={abrirDia} />
+                            <GradeMes mes={cursor} dias={diasMes} agendamentos={itens} bloqueios={bloqueios} onDia={abrirDia} />
                         )}
                         {temAgenda && opcoes.profissionais.length > 0 && visaoCal === 'semana' && (
                             <GradeSemana
@@ -364,6 +375,7 @@ export default function InicioPage() {
                                 dias={diasSemana}
                                 profissionais={profissionaisVisiveis}
                                 agendamentos={itens}
+                                bloqueios={bloqueios}
                                 onDia={abrirDia}
                                 onSlot={(profissionalId, inicio) =>
                                     irAgenda({
@@ -516,7 +528,7 @@ export default function InicioPage() {
                         </div>
                         {opcoes.profissionais.length === 0 ? (
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                Nenhuma cadeira cadastrada.
+                                {`${termos.nenhum('recurso')} ${termos.adj('recurso', 'cadastrado')}.`}
                             </p>
                         ) : (
                             <div className="overflow-x-auto">
@@ -524,6 +536,7 @@ export default function InicioPage() {
                                     dia={diaAberto}
                                     profissionais={profissionaisVisiveis}
                                     agendamentos={itens}
+                                    bloqueios={bloqueios}
                                     onSlot={(profissionalId, inicio) =>
                                         irAgenda({
                                             novo: true,

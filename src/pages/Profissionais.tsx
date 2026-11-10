@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAbrirNovoDaQuery } from '@/lib/queryNovo';
 import PageLayout from '@/components/layout/PageLayout';
 import PageCard from '@/components/layout/PageCard';
@@ -74,6 +74,11 @@ export default function ProfissionaisPage() {
     const [formAberto, setFormAberto] = useState(false);
     const [editando, setEditando] = useState<Profissional | null>(null);
     const [pessoaAtual, setPessoaAtual] = useState<Pessoa | null>(null);
+    const [carregandoPessoa, setCarregandoPessoa] = useState(false);
+    const [erroPessoa, setErroPessoa] = useState('');
+    /** Pessoa criada no Core numa tentativa que falhou no Lyra: a próxima tentativa reaproveita. */
+    const [pessoaCriadaId, setPessoaCriadaId] = useState<number | null>(null);
+    const pedidoPessoa = useRef(0);
     const [nome, setNome] = useState('');
     const [cpf, setCpf] = useState('');
     const [nascimento, setNascimento] = useState('');
@@ -100,6 +105,8 @@ export default function ProfissionaisPage() {
         telefoneValido(telefone) &&
         intervalosDoExpediente(dias).length > 0 &&
         !erroExpediente(dias) &&
+        !carregandoPessoa &&
+        !erroPessoa &&
         loginOk;
 
     const carregar = useCallback(async () => {
@@ -162,16 +169,24 @@ export default function ProfissionaisPage() {
         setFormAberto(false);
     };
 
-    const abrirNovo = () => {
-        setEditando(null);
+    const limparPessoa = () => {
+        pedidoPessoa.current += 1;
         setPessoaAtual(null);
-        setNome('');
+        setCarregandoPessoa(false);
+        setErroPessoa('');
+        setPessoaCriadaId(null);
         setCpf('');
         setNascimento('');
         setTelefone('');
         setPodeLogar(false);
         setEmail('');
         setPerfilId('');
+    };
+
+    const abrirNovo = () => {
+        setEditando(null);
+        limparPessoa();
+        setNome('');
         setCor('copper');
         setAtivo(true);
         setDias(expedientePadrao());
@@ -182,6 +197,7 @@ export default function ProfissionaisPage() {
     useAbrirNovoDaQuery(!carregando, abrirNovo);
 
     const abrirEditar = async (p: Profissional) => {
+        limparPessoa();
         setEditando(p);
         setNome(p.nome);
         setCor(p.cor);
@@ -190,8 +206,11 @@ export default function ProfissionaisPage() {
         setFormErro('');
         setFormAberto(true);
         if (p.pessoaId) {
+            const pedido = pedidoPessoa.current;
+            setCarregandoPessoa(true);
             try {
                 const pessoa = await pessoaService.obter(p.pessoaId);
+                if (pedido !== pedidoPessoa.current) return;
                 setPessoaAtual(pessoa);
                 setNome(pessoa.nomeCompleto || p.nome);
                 setCpf(pessoa.cpf ? formatarCpf(pessoa.cpf) : '');
@@ -213,21 +232,19 @@ export default function ProfissionaisPage() {
                         ];
                     });
                 }
-            } catch {
-                setPessoaAtual(null);
+            } catch (e) {
+                if (pedido !== pedidoPessoa.current) return;
+                setErroPessoa(`Não foi possível carregar os dados pessoais (${mensagemErroHttp(e)}). Feche e abra de novo para editar.`);
+            } finally {
+                if (pedido === pedidoPessoa.current) setCarregandoPessoa(false);
             }
-        } else {
-            setPessoaAtual(null);
-            setCpf('');
-            setNascimento('');
-            setTelefone('');
-            setPodeLogar(false);
-            setEmail('');
         }
     };
 
     const payloadPessoa = (): Pessoa => {
         const emailLogin = email.trim();
+        // Senha inicial = CPF só quando o login nasce agora; reenviar redefiniria a senha da pessoa.
+        const loginNovo = podeLogar && !pessoaAtual?.podeLogar;
         return {
             ...pessoaAtual,
             nomeCompleto: nome.trim(),
@@ -239,7 +256,7 @@ export default function ProfissionaisPage() {
             podeLogar: podeLogar && !!emailLogin,
             estaAtivo: true,
             perfilAcessoId: podeLogar && typeof perfilId === 'number' ? perfilId : undefined,
-            senha: podeLogar ? cpfDigitos : undefined,
+            senha: loginNovo ? cpfDigitos : undefined,
         };
     };
 
@@ -259,14 +276,14 @@ export default function ProfissionaisPage() {
         setSalvando(true);
         setFormErro('');
         try {
-            let pessoaId = editando?.pessoaId ?? 0;
-            if (editando?.pessoaId) {
-                await pessoaService.atualizar(editando.pessoaId, payloadPessoa(), empresaId || undefined);
-                pessoaId = editando.pessoaId;
+            let pessoaId = editando?.pessoaId ?? pessoaCriadaId ?? 0;
+            if (pessoaId) {
+                await pessoaService.atualizar(pessoaId, payloadPessoa(), empresaId || undefined);
             } else {
                 const pessoa = await pessoaService.criar(payloadPessoa(), empresaId || undefined);
                 if (!pessoa.id) throw new Error('Core não devolveu o id da pessoa.');
                 pessoaId = pessoa.id;
+                setPessoaCriadaId(pessoa.id);
             }
             const payload: SalvarProfissional = {
                 nome: nome.trim(),
@@ -480,6 +497,16 @@ export default function ProfissionaisPage() {
                     </>
                 }
             >
+                {carregandoPessoa && (
+                    <p className="mb-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        Carregando dados pessoais…
+                    </p>
+                )}
+                {erroPessoa && (
+                    <div className="mb-3">
+                        <Alert titulo="Dados pessoais">{erroPessoa}</Alert>
+                    </div>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Input label="Nome" required value={nome} onChange={(e) => setNome(e.target.value)} />
                     <Input

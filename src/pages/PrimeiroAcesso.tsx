@@ -1,5 +1,5 @@
-import { FormEvent, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { FormEvent, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { authService } from '@core/services';
 import { APP_CONFIG } from '@core/config';
 import { Alert, Button } from '@/components/ui';
@@ -55,19 +55,16 @@ function CampoSenha({
 
 export default function PrimeiroAcessoPage() {
     const navigate = useNavigate();
-    const [params] = useSearchParams();
     const user = authService.getStoredUserInfo();
-    const email = useMemo(
-        () => (params.get('email') || user?.email || '').trim(),
-        [params, user?.email],
-    );
+    // Só o e-mail da sessão: aceitar o da URL deixaria qualquer um definir a senha de outra conta.
+    const email = (user?.email || '').trim();
 
     const [novaSenha, setNovaSenha] = useState('');
     const [confirmacao, setConfirmacao] = useState('');
     const [erro, setErro] = useState('');
     const [salvando, setSalvando] = useState(false);
 
-    if (!authService.isAuthenticated() && !email) {
+    if (!authService.isAuthenticated()) {
         return <Navigate to="/login" replace />;
     }
     if (authService.isAuthenticated() && !authService.needsPasswordChange()) {

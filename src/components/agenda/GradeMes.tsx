@@ -6,6 +6,7 @@ import {
     ocupaHorario,
 } from '@/lib/agenda';
 import { type Agendamento } from '@/services/agendamento.service';
+import { type Bloqueio } from '@/services/bloqueio.service';
 
 const SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -13,11 +14,13 @@ export default function GradeMes({
     mes,
     dias,
     agendamentos,
+    bloqueios = [],
     onDia,
 }: {
     mes: Date;
     dias: Date[];
     agendamentos: Agendamento[];
+    bloqueios?: Bloqueio[];
     onDia: (dia: Date) => void;
 }) {
     const hoje = cloneDia(new Date());
@@ -46,6 +49,10 @@ export default function GradeMes({
                         .sort((a, b) => a.inicio.localeCompare(b.inicio));
                     const ativos = doDia.filter((a) => ocupaHorario(a.status));
                     const preview = ativos.slice(0, 2);
+                    const fimDia = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate() + 1);
+                    const bloqueio = bloqueios.find(
+                        (b) => new Date(b.inicio) < fimDia && new Date(b.fim) > dia
+                    );
                     return (
                         <button
                             key={dia.toISOString()}
@@ -79,6 +86,14 @@ export default function GradeMes({
                                 )}
                             </div>
                             <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5">
+                                {bloqueio && (
+                                    <span
+                                        className="truncate rounded-sm border border-dashed px-1 py-0.5 text-[10px] leading-tight"
+                                        style={{ borderColor: 'var(--line)', color: 'var(--muted-foreground)' }}
+                                    >
+                                        {bloqueio.motivo || 'Bloqueado'}
+                                    </span>
+                                )}
                                 {preview.map((a) => (
                                     <span
                                         key={a.id}

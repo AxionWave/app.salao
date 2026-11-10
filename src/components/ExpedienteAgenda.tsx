@@ -21,6 +21,22 @@ function minutos(hhmm: string): number {
     return (h || 0) * 60 + (m || 0);
 }
 
+/** Minutos cobertos por pelo menos uma faixa; sobreposição não conta duas vezes. */
+function minutosCobertos(faixas: { inicio: string; fim: string }[]): number {
+    const ordenadas = faixas
+        .map((f) => [minutos(f.inicio), minutos(f.fim)] as const)
+        .filter(([a, b]) => b > a)
+        .sort((x, y) => x[0] - y[0]);
+    let total = 0;
+    let ate = -1;
+    for (const [a, b] of ordenadas) {
+        if (b <= ate) continue;
+        total += b - Math.max(a, ate);
+        ate = b;
+    }
+    return total;
+}
+
 function hhmm(min: number): string {
     const x = Math.max(0, Math.min(23 * 60 + 59, min));
     return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`;
@@ -132,12 +148,11 @@ export default function ExpedienteAgenda({
 
     const podeAdicionar =
         dia?.ativo && dia.faixas.length < MAX_FAIXAS && Math.max(...dia.faixas.map((f) => minutos(f.fim))) <= 22 * 60;
-    const minutosDia = dia?.faixas.reduce((acc, f) => acc + Math.max(0, minutos(f.fim) - minutos(f.inicio)), 0) ?? 0;
+    const minutosDia = minutosCobertos(dia?.faixas ?? []);
 
     const escolher = (id: number) => {
         setSelecionado(id);
         if (!aberto) setAberto(true);
-        if (!dias[id].ativo) atualizar(id, { ativo: true });
     };
 
     return (

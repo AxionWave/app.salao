@@ -1,5 +1,6 @@
 import { lyraClient } from '@core/services';
 import { API_CONFIG } from '@core/config';
+import type { Cliente } from '@/services/cliente.service';
 
 export interface AgendamentoServico {
     id: number;
@@ -108,6 +109,14 @@ export const agendamentoService = {
 
     async opcoes(): Promise<OpcoesAgenda> {
         const { data } = await lyraClient.get<OpcoesAgenda>(`${base}/opcoes`);
+        return data;
+    },
+
+    /** Clientes ativos para o agendamento; liberado a quem só tem o módulo Agenda. */
+    async buscarClientes(busca: string, limite = 20): Promise<{ items: Cliente[]; total: number }> {
+        const { data } = await lyraClient.get<{ items: Cliente[]; total: number }>(`${base}/clientes`, {
+            params: { busca: busca.trim() || undefined, limite },
+        });
         return data;
     },
 

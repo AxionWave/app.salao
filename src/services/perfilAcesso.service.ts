@@ -3,7 +3,8 @@ import {
     MODULO_AGENDA,
     MODULO_CLIENTES,
     MODULO_CONFIGURACOES,
-    MODULO_RAIZ,
+    MODULO_PROFISSIONAIS,
+    MODULOS_RAIZ,
     MODULO_RELATORIO,
     MODULO_SERVICOS,
 } from '@/constants/moduleCodes';
@@ -53,7 +54,7 @@ export interface ModuloLyraCatalogo {
     moduloNome: string;
 }
 
-export type FlagLyra = 'agendar' | 'servicos' | 'clientes' | 'configuracoes' | 'relatorio';
+export type FlagLyra = 'agendar' | 'servicos' | 'clientes' | 'profissionais' | 'configuracoes' | 'relatorio';
 
 export type ItemCatalogoFlag = {
     id: FlagLyra;
@@ -68,6 +69,7 @@ export const CATALOGO_FLAGS: ItemCatalogoFlag[] = [
     { id: 'agendar', codigo: MODULO_AGENDA, label: 'Agendar', detalhe: 'Criar e alterar itens na agenda' },
     { id: 'clientes', codigo: MODULO_CLIENTES, label: 'Cadastrar clientes', termo: 'cliente', detalhe: 'Abrir e editar fichas' },
     { id: 'servicos', codigo: MODULO_SERVICOS, label: 'Cadastrar serviços', termo: 'servico', detalhe: 'Incluir e alterar o catálogo' },
+    { id: 'profissionais', codigo: MODULO_PROFISSIONAIS, label: 'Cadastrar profissionais', termo: 'recurso', detalhe: 'Equipe, expediente e cor na agenda' },
     { id: 'relatorio', codigo: MODULO_RELATORIO, label: 'Ver relatório financeiro', detalhe: 'A tela vem depois; a permissão já fica no perfil' },
     { id: 'configuracoes', codigo: MODULO_CONFIGURACOES, label: 'Entrar nas configurações', detalhe: 'Perfis e permissões desta empresa' },
 ];
@@ -78,6 +80,7 @@ export const flagsVazias: FlagsForm = {
     agendar: false,
     servicos: false,
     clientes: false,
+    profissionais: false,
     configuracoes: false,
     relatorio: false,
 };
@@ -86,6 +89,7 @@ export const flagsTodas: FlagsForm = {
     agendar: true,
     servicos: true,
     clientes: true,
+    profissionais: true,
     configuracoes: true,
     relatorio: true,
 };
@@ -131,6 +135,7 @@ export function flagsDoPerfil(p: PerfilLyraCompleto): FlagsForm {
         agendar: ligados.has(MODULO_AGENDA),
         servicos: ligados.has(MODULO_SERVICOS),
         clientes: ligados.has(MODULO_CLIENTES),
+        profissionais: ligados.has(MODULO_PROFISSIONAIS),
         configuracoes: ligados.has(MODULO_CONFIGURACOES),
         relatorio: ligados.has(MODULO_RELATORIO),
     };
@@ -140,10 +145,10 @@ function permissoesOperacao(): PermissoesLyra {
     return { podeVisualizar: true, podeCriar: true, podeEditar: true, podeExcluir: false };
 }
 
+/** O módulo principal vai sempre: sem ele ninguém com o perfil consegue entrar no Lyra. */
 function payloadModulos(
     flags: FlagsForm,
-    catalogo: ModuloLyraCatalogo[],
-    opts?: { incluirRaiz?: boolean }
+    catalogo: ModuloLyraCatalogo[]
 ): { moduloId: number; permissoes: PermissoesLyra }[] {
     const byCodigo = new Map(catalogo.map((m) => [m.moduloCodigo, m]));
     const out: { moduloId: number; permissoes: PermissoesLyra }[] = [];
@@ -154,17 +159,16 @@ function payloadModulos(
     if (flags.agendar) push(MODULO_AGENDA, permissoesOperacao());
     if (flags.clientes) push(MODULO_CLIENTES, permissoesOperacao());
     if (flags.servicos) push(MODULO_SERVICOS, permissoesOperacao());
+    if (flags.profissionais) push(MODULO_PROFISSIONAIS, permissoesOperacao());
     if (flags.relatorio) {
         push(MODULO_RELATORIO, { podeVisualizar: true, podeVerRelatorios: true });
     }
     if (flags.configuracoes) {
         push(MODULO_CONFIGURACOES, { podeVisualizar: true, podeConfigurar: true });
     }
-    if (opts?.incluirRaiz !== false) {
-        const raiz = byCodigo.get(MODULO_RAIZ);
-        if (raiz && !out.some((x) => x.moduloId === raiz.moduloId)) {
-            out.push({ moduloId: raiz.moduloId, permissoes: { podeVisualizar: true } });
-        }
+    const raiz = MODULOS_RAIZ.map((c) => byCodigo.get(c)).find(Boolean);
+    if (raiz && !out.some((x) => x.moduloId === raiz.moduloId)) {
+        out.push({ moduloId: raiz.moduloId, permissoes: { podeVisualizar: true } });
     }
     return out;
 }
@@ -250,7 +254,7 @@ export const perfilAcessoService = {
             descricao: params.descricao?.trim() || undefined,
             empresaId: params.empresaId,
             sistemaCodigo: 'LYR',
-            modulos: payloadModulos(params.flags, params.catalogo, { incluirRaiz: true }),
+            modulos: payloadModulos(params.flags, params.catalogo),
         });
         return data;
     },
@@ -270,9 +274,7 @@ export const perfilAcessoService = {
             descricao: params.descricao?.trim() || undefined,
             empresaId: params.empresaId,
             sistemaCodigo: 'LYR',
-            modulos: payloadModulos(params.flags, params.catalogo, {
-                incluirRaiz: !ehFuncionarioLyra(params.nome),
-            }),
+            modulos: payloadModulos(params.flags, params.catalogo),
         });
         return data;
     },

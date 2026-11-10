@@ -5,6 +5,7 @@ import PageCard from '@/components/layout/PageCard';
 import GradeDia from '@/components/agenda/GradeDia';
 import GradeSemana from '@/components/agenda/GradeSemana';
 import BloqueioModal from '@/components/agenda/BloqueioModal';
+import CampoCliente from '@/components/agenda/CampoCliente';
 import { Alert, Badge, Button, Input, Modal, Textarea } from '@/components/ui';
 import { authService } from '@core/services';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
@@ -40,7 +41,6 @@ import {
     type SalvarAgendamento,
     rotuloServicos,
 } from '@/services/agendamento.service';
-import { clienteService, type Cliente } from '@/services/cliente.service';
 import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
 
@@ -50,6 +50,7 @@ type Visao = 'dia' | 'semana';
 
 type FormAgenda = {
     clienteId: string;
+    clienteNome: string;
     servicoIds: number[];
     profissionalId: string;
     inicio: string;
@@ -58,6 +59,7 @@ type FormAgenda = {
 
 const formVazio: FormAgenda = {
     clienteId: '',
+    clienteNome: '',
     servicoIds: [],
     profissionalId: '',
     inicio: '',
@@ -108,7 +110,7 @@ export default function AgendaPage() {
     const [opcoes, setOpcoes] = useState<OpcoesAgenda>({ profissionais: [], servicos: [], fusoHorario: '' });
     const [livres, setLivres] = useState<HorarioLivre[] | null>(null);
     const [carregandoLivres, setCarregandoLivres] = useState(false);
-    const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [semClientes, setSemClientes] = useState(false);
     const [itens, setItens] = useState<Agendamento[]>([]);
     const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
     const [bloqueioAberto, setBloqueioAberto] = useState(false);
@@ -147,7 +149,7 @@ export default function AgendaPage() {
         setCarregando(true);
         setErroLista('');
         try {
-            const [ops, lista, cli, blq] = await Promise.all([
+            const [ops, lista, blq] = await Promise.all([
                 agendamentoService.opcoes(),
                 agendamentoService.listar({
                     de: periodo.de.toISOString(),
@@ -155,10 +157,6 @@ export default function AgendaPage() {
                     profissionalId: filtroProf ? Number(filtroProf) : undefined,
                     status: filtroStatus || undefined,
                 }),
-                clienteService
-                    .listar({ ativo: true, page: 1, pageSize: 200 })
-                    .then((r) => r.items)
-                    .catch(() => [] as Cliente[]),
                 bloqueioService
                     .listar({
                         de: periodo.de.toISOString(),
@@ -169,7 +167,6 @@ export default function AgendaPage() {
             ]);
             setOpcoes(ops);
             setItens(lista.items);
-            setClientes(cli);
             setBloqueios(blq);
         } catch (e) {
             setErroLista(mensagemErroHttp(e));
@@ -216,6 +213,22 @@ export default function AgendaPage() {
         };
     }, [formAberto, encerradoForm, form.profissionalId, servicoIdsChave, diaDoForm, editando?.id]);
 
+    useEffect(() => {
+        if (!formAberto || editando) return;
+        let cancelado = false;
+        agendamentoService
+            .buscarClientes('', 1)
+            .then((r) => {
+                if (!cancelado) setSemClientes(r.total === 0);
+            })
+            .catch(() => {
+                if (!cancelado) setSemClientes(false);
+            });
+        return () => {
+            cancelado = true;
+        };
+    }, [formAberto, editando]);
+
     const fecharForm = () => {
         if (salvando || statusando) return;
         setFormAberto(false);
@@ -239,7 +252,6 @@ export default function AgendaPage() {
         setAdicionarServicoId('');
         setForm({
             ...formVazio,
-            clienteId: clientes[0] ? String(clientes[0].id) : '',
             servicoIds: servId ? [servId] : [],
             profissionalId: profId ? String(profId) : '',
             inicio: paraDatetimeLocal(inicio),
@@ -258,6 +270,7 @@ export default function AgendaPage() {
         setAdicionarServicoId('');
         setForm({
             clienteId: String(a.clienteId),
+            clienteNome: a.clienteNome,
             servicoIds: a.servicos?.length ? a.servicos.map((s) => s.id) : [],
             profissionalId: String(a.profissionalId),
             inicio: paraDatetimeLocal(new Date(a.inicio)),
@@ -355,6 +368,12 @@ export default function AgendaPage() {
 
     const mudarStatus = async (status: string) => {
         if (!editando) return;
+        if (statusTerminal(status)) {
+            const ok = window.confirm(
+                `Marcar como "${labelStatus(status)}"? Depois disso não dá para alterar este ${termos.agendamento.singular.toLowerCase()}.`
+            );
+            if (!ok) return;
+        }
         setStatusando(status);
         setFormErro('');
         try {
@@ -563,7 +582,7 @@ export default function AgendaPage() {
 
                         {carregando && (
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                Montando a grade⬦
+                                Montando a grade…
                             </p>
                         )}
 
@@ -639,7 +658,7 @@ export default function AgendaPage() {
                         </Button>
                         {!encerrado && (
                             <Button onClick={() => void salvar()} disabled={salvando || !podeSalvar}>
-                                {salvando ? 'Salvando⬦' : 'Salvar'}
+                                {salvando ? 'Salvando…' : 'Salvar'}
                             </Button>
                         )}
                     </>
@@ -655,19 +674,14 @@ export default function AgendaPage() {
                 )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                    <CampoSelect
+                    <CampoCliente
                         label={termos.cliente.singular}
-                        required
-                        value={form.clienteId}
-                        onChange={(clienteId) => preencherForm({ clienteId })}
-                    >
-                        <option value="">Selecione</option>
-                        {clientes.map((c) => (
-                            <option key={c.id} value={c.id}>
-                                {c.nome}
-                            </option>
-                        ))}
-                    </CampoSelect>
+                        disabled={encerrado}
+                        valor={form.clienteId ? { id: Number(form.clienteId), nome: form.clienteNome } : null}
+                        onChange={(c) =>
+                            preencherForm({ clienteId: c ? String(c.id) : '', clienteNome: c?.nome ?? '' })
+                        }
+                    />
                     <CampoSelect
                         label={termos.recurso.singular}
                         required
@@ -799,7 +813,7 @@ export default function AgendaPage() {
                                     preencherForm({ servicoIds: [...form.servicoIds, id] });
                                 }}
                             >
-                                <option value="">{`Adicionar ${termos.um('servico')}⬦`}</option>
+                                <option value="">{`Adicionar ${termos.um('servico')}…`}</option>
                                 {opcoes.servicos.map((s) => (
                                     <option key={s.id} value={s.id}>
                                         {s.nome} · {formatarDuracaoMinutos(s.duracaoMinutos)}
@@ -825,7 +839,7 @@ export default function AgendaPage() {
                     )}
                 </div>
 
-                {clientes.length === 0 && (
+                {semClientes && (
                     <p className="mt-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                         {`${termos.nenhum('cliente')} ${termos.adj('cliente', 'ativo')}.`}{' '}
                         {authService.hasModulo(MODULO_CLIENTES) ? (
@@ -853,7 +867,7 @@ export default function AgendaPage() {
                 <div className="mt-4">
                     <Textarea
                         label="Observações"
-                        placeholder="Recado interno, preferência⬦"
+                        placeholder="Recado interno, preferência…"
                         value={form.observacoes}
                         onChange={(e) => preencherForm({ observacoes: e.target.value })}
                     />
@@ -865,13 +879,13 @@ export default function AgendaPage() {
                     </div>
                 )}
 
-                {editando && transicoesDe(editando.status).length > 0 && (
+                {editando && transicoesDe(editando.status, editando.inicio).length > 0 && (
                     <div className="mt-5">
                         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--copper)' }}>
                             Status
                         </p>
                         <div className="flex flex-wrap gap-2">
-                            {transicoesDe(editando.status).map((t) => (
+                            {transicoesDe(editando.status, editando.inicio).map((t) => (
                                 <Button
                                     key={t.id}
                                     size="sm"
@@ -879,7 +893,7 @@ export default function AgendaPage() {
                                     disabled={Boolean(statusando) || salvando}
                                     onClick={() => void mudarStatus(t.id)}
                                 >
-                                    {statusando === t.id ? 'Atualizando⬦' : t.label}
+                                    {statusando === t.id ? 'Atualizando…' : t.label}
                                 </Button>
                             ))}
                         </div>

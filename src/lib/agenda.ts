@@ -265,8 +265,21 @@ export function varianteStatus(id: string): 'copper' | 'ok' | 'warn' | 'danger' 
     }
 }
 
-export function transicoesDe(atual: string): { id: string; label: string; perigo?: boolean }[] {
+/** Mesmas regras da API: concluir ou marcar falta só depois do início; atender a partir de 1 h antes. */
+const ANTECEDENCIA_ATENDIMENTO_MS = 60 * 60_000;
+
+export function transicoesDe(
+    atual: string,
+    inicio?: string,
+    agora: Date = new Date()
+): { id: string; label: string; perigo?: boolean }[] {
     if (statusTerminal(atual)) return [];
+    const ms = inicio ? new Date(inicio).getTime() - agora.getTime() : 0;
+    const permitido = (id: string) => {
+        if (id === 'concluido' || id === 'no_show') return ms <= 0;
+        if (id === 'em_atendimento') return ms <= ANTECEDENCIA_ATENDIMENTO_MS;
+        return true;
+    };
     const acao: Record<string, string> = {
         agendado: 'Voltar a agendado',
         confirmado: 'Confirmar',
@@ -275,7 +288,7 @@ export function transicoesDe(atual: string): { id: string; label: string; perigo
         cancelado: 'Cancelar',
         no_show: 'Não compareceu',
     };
-    return STATUS_AGENDA.filter((s) => s.id !== atual).map((s) => ({
+    return STATUS_AGENDA.filter((s) => s.id !== atual && permitido(s.id)).map((s) => ({
         id: s.id,
         label: acao[s.id] ?? s.label,
         perigo: s.id === 'cancelado' || s.id === 'no_show',

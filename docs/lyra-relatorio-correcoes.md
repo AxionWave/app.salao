@@ -15,6 +15,25 @@ Cada item tem um código `R-xx`, usado no [plano de testes](./lyra-plano-de-test
 
 Prioridade sugerida: **R-01, R-02** (segurança) → **R-03, R-06, R-07** (acesso e agenda) → **R-04** (dados pessoais) → o resto das Médias.
 
+## Situação em 10/11/2026
+
+**Corrigidos:** R-01, R-02, R-03, R-04, R-05, R-06, R-07, R-08, R-09, R-12, R-13, R-15, R-16, R-18, R-20, R-21, R-27, e o aviso de bloqueio de R-29 (conta só agendamentos em aberto). O teste de API `api.salao/tests/e2e-agenda.ps1` cobre os itens do backend (114 de 114 passando).
+
+O que mudou para quem usa:
+- A API não sobe em produção sem `JWT_SECRET` e ignora os cabeçalhos `X-Empresa-Id`, `X-User-Roles` e afins.
+- O cliente do agendamento é escolhido por busca (nome, telefone ou e-mail, cada palavra em qualquer campo), pela rota nova `GET /api/salao/agendamentos/clientes`, liberada para o módulo Agenda.
+- Na edição de agendamento, o que não foi trocado pode estar inativo, e preço/duração gravados são mantidos.
+- Não dá para marcar no passado (5 min de tolerância), concluir ou marcar falta antes do início, nem iniciar atendimento mais de 1 h antes. Status finais pedem confirmação.
+- Listagem de agendamentos limitada a 62 dias; de bloqueios, a um ano.
+- O perfil de acesso tem a opção "Cadastrar profissionais" e sempre mantém o módulo principal.
+- Editar profissional limpa os dados da pessoa anterior, bloqueia o Salvar até a pessoa carregar e só manda senha quando o login é ligado agora.
+- `/primeiro-acesso` exige login e usa o e-mail da sessão.
+- Início mostra os bloqueios (mês, semana e dia).
+
+**A confirmar no Core:** se o Core também confere o token em `definir-senha-inicial` (R-05) e se substitui a lista de módulos ao salvar perfil (R-03). Também conferir se o `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`): a API aceita qualquer chave não vazia, e trocar exige mudar o oAuth junto.
+
+**Pendentes:** R-10, R-11, R-14, R-17, R-19, R-22, R-23 (cache no logout), R-24, R-25, R-26, R-28, R-30, R-31 e o resto de R-29.
+
 ---
 
 ## Alta
@@ -194,7 +213,3 @@ Estes itens passaram em compilação e em testes de API com dados vazios, mas pr
 - A recusa por expediente, bloqueio, preparo e "não atende".
 - Salvar a configuração da empresa (`PUT /configuracao`) com uma conta real.
 - Todas as telas novas no navegador: modal de bloqueio, faixas de expediente, "Quem atende" e chips de horários livres.
-
-## Observação
-
-Nada das Fases 1 e 2 foi commitado ainda nos dois repositórios. Recomendo commitar antes de começar as correções, para separar as mudanças.
