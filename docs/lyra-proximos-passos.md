@@ -29,7 +29,11 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 **Agenda**
 - [x] **R-17 — Trava contra dois agendamentos no mesmo horário.** `pg_advisory_xact_lock` por empresa e profissional ao criar, editar e remarcar. Testado com 10 pedidos simultâneos: só 1 grava.
 - [x] **Remarcar** (decisão para R-19): a equipe remarca agendamentos em aberto, faltas e cancelados. O original em aberto é cancelado com motivo "Remarcado" e o novo guarda `remarcadoDeId`. Cancelar pede um motivo opcional. A falta continua ocupando o horário.
-- [ ] R-10 desativar profissional com agendamentos futuros · R-14 cancelado cobrindo o horário · R-30 slot dentro do preparo · R-11 expediente que esconde agendamentos · R-31 ocupação sem descontar bloqueios.
+- [x] **R-10 — Desativar profissional:** antes de desativar, a tela lista os agendamentos futuros em aberto e oferece desligar o login (nunca o do próprio usuário). Inativo continua na grade enquanto tiver agendamentos, sem aceitar horários novos.
+- [x] **R-11 — Expediente que esconde agendamentos:** ao salvar um expediente que deixa agendamentos de fora, a tela lista quais são e pede confirmação; a grade se estende para mostrá-los. (Troca de fuso da empresa ainda não avisa.)
+- [x] **R-14 — Cancelado na grade:** vira uma faixa estreita à direita, clicável para remarcar; o resto do horário fica livre para marcar.
+- [x] **R-30 — Preparo:** horários dentro do preparo ficam desabilitados na grade.
+- [x] **R-31 — Ocupação:** a capacidade desconta os bloqueios (Agenda e Início).
 
 **Cadastros, sessão e acabamento**
 - [x] **Família (decisão para o telefone único de R-29):** fichas podem formar um grupo familiar com parentesco; telefone e e-mail só se repetem dentro da mesma família. Ao digitar um contato que já existe, a ficha oferece entrar na família.

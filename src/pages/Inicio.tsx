@@ -23,6 +23,7 @@ import {
     minutosNoDia,
     ocupaHorario,
     partesDia,
+    profissionaisNaGrade,
     varianteStatus,
 } from '@/lib/agenda';
 import {
@@ -37,7 +38,7 @@ import {
     type Agendamento,
     type OpcoesAgenda,
 } from '@/services/agendamento.service';
-import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
+import { bloqueiaProfissional, bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
 
 function saudacaoNome(): string {
@@ -128,9 +129,10 @@ export default function InicioPage() {
     }, [carregar]);
 
     const profissionaisVisiveis = useMemo(() => {
-        if (!filtroProf) return opcoes.profissionais;
-        return opcoes.profissionais.filter((p) => String(p.id) === filtroProf);
-    }, [opcoes.profissionais, filtroProf]);
+        const lista = profissionaisNaGrade(opcoes.profissionais, itens);
+        if (!filtroProf) return lista;
+        return lista.filter((p) => String(p.id) === filtroProf);
+    }, [opcoes.profissionais, itens, filtroProf]);
 
     const deHoje = useMemo(
         () => itens.filter((a) => mesmoDia(a.inicio, hoje)),
@@ -146,7 +148,11 @@ export default function InicioPage() {
     const ocupacao = useMemo(() => {
         let cap = 0;
         for (const p of profissionaisVisiveis) {
-            cap += minutosNoDia(p.disponibilidades, hoje);
+            cap += minutosNoDia(
+                p.disponibilidades,
+                hoje,
+                bloqueios.filter((b) => bloqueiaProfissional(b, p.id))
+            );
         }
         const usado = ativosHoje.reduce(
             (acc, a) => acc + Math.max(0, (new Date(a.fim).getTime() - new Date(a.inicio).getTime()) / 60000),
@@ -154,7 +160,7 @@ export default function InicioPage() {
         );
         if (cap <= 0) return 0;
         return Math.min(100, Math.round((usado / cap) * 100));
-    }, [profissionaisVisiveis, hoje, ativosHoje]);
+    }, [profissionaisVisiveis, hoje, ativosHoje, bloqueios]);
 
     const irAgenda = (opts?: {
         novo?: boolean;
@@ -246,7 +252,7 @@ export default function InicioPage() {
                             <option value="">{`${termos.adj('recurso', 'Todos')} ${termos.adj('recurso', 'os')} ${termos.varios('recurso')}`}</option>
                             {opcoes.profissionais.map((p) => (
                                 <option key={p.id} value={p.id}>
-                                    {p.nome}
+                                    {p.ativo ? p.nome : `${p.nome} (inativo)`}
                                 </option>
                             ))}
                         </select>

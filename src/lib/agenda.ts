@@ -1,4 +1,4 @@
-import type { IntervaloAgenda } from '@/services/agendamento.service';
+import type { IntervaloAgenda, ProfissionalAgenda } from '@/services/agendamento.service';
 
 export const SLOT_MIN = 30;
 export const ROW_PX = 52;
@@ -164,9 +164,29 @@ export function intervaloNoDia(disp: IntervaloAgenda[], dia: Date): Faixa | null
     return { inicio: faixas[0].inicio, fim: Math.max(...faixas.map((f) => f.fim)) };
 }
 
-/** Minutos trabalhados no dia, sem as pausas. */
-export function minutosNoDia(disp: IntervaloAgenda[], dia: Date): number {
-    return faixasNoDia(disp, dia).reduce((acc, f) => acc + (f.fim - f.inicio), 0);
+/** Minutos trabalhados no dia, sem as pausas e sem o que estiver bloqueado (férias, feriado). */
+export function minutosNoDia(
+    disp: IntervaloAgenda[],
+    dia: Date,
+    bloqueios: { inicio: string; fim: string }[] = []
+): number {
+    const bloqueadas = bloqueios
+        .map((b) => faixaNoDia(b, dia))
+        .filter((f): f is Faixa => f !== null)
+        .sort((a, b) => a.inicio - b.inicio);
+    return faixasNoDia(disp, dia).reduce((acc, f) => {
+        let livre = f.fim - f.inicio;
+        let cursor = f.inicio;
+        for (const b of bloqueadas) {
+            const ini = Math.max(b.inicio, cursor);
+            const fim = Math.min(b.fim, f.fim);
+            if (fim > ini) {
+                livre -= fim - ini;
+                cursor = fim;
+            }
+        }
+        return acc + livre;
+    }, 0);
 }
 
 export function resumoFaixas(faixas: Faixa[]): string {
@@ -186,11 +206,19 @@ export function faixaNoDia(periodo: { inicio: string; fim: string }, dia: Date):
     };
 }
 
-export function limitesGrade(listas: IntervaloAgenda[][], dia: Date): { inicio: number; fim: number } {
+/** Cobre o expediente e também agendamentos que ficaram fora dele (expediente alterado depois). */
+export function limitesGrade(
+    listas: IntervaloAgenda[][],
+    dia: Date,
+    agendamentos: { inicio: string; fim: string }[] = []
+): { inicio: number; fim: number } {
     let min = 24 * 60;
     let max = 0;
-    for (const d of listas) {
-        const iv = intervaloNoDia(d, dia);
+    const faixas = [
+        ...listas.map((d) => intervaloNoDia(d, dia)),
+        ...agendamentos.map((a) => faixaNoDia(a, dia)),
+    ];
+    for (const iv of faixas) {
         if (iv) {
             min = Math.min(min, iv.inicio);
             max = Math.max(max, iv.fim);
@@ -235,6 +263,14 @@ export function gerarSlots(inicio: number, fim: number): number[] {
 
 export function slotDentro(faixas: Faixa[], minutos: number): boolean {
     return faixas.some((f) => minutos >= f.inicio && minutos < f.fim);
+}
+
+/** Ativos e os inativos que ainda têm agendamentos no período (para não sumirem da grade). */
+export function profissionaisNaGrade(
+    lista: ProfissionalAgenda[],
+    agendamentos: { profissionalId: number }[]
+): ProfissionalAgenda[] {
+    return lista.filter((p) => p.ativo || agendamentos.some((a) => a.profissionalId === p.id));
 }
 
 export function ocupaHorario(status: string): boolean {

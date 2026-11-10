@@ -18,9 +18,11 @@ import { pessoaService, type Pessoa } from '@/services/pessoa.service';
 import { perfilAcessoService, ehClienteAdmin, ehFuncionarioLyra, type PerfilAcesso } from '@/services/perfilAcesso.service';
 import {
     profissionalService,
+    type ImpactoProfissional,
     type Profissional,
     type SalvarProfissional,
 } from '@/services/profissional.service';
+import AvisoImpacto from '@/components/profissionais/AvisoImpacto';
 import { useTermos } from '@/contexts/TermosContext';
 
 const PAGE_SIZE = 10;
@@ -93,7 +95,20 @@ export default function ProfissionaisPage() {
     const [dias, setDias] = useState<Record<number, ExpedienteDia>>(expedientePadrao);
     const [formErro, setFormErro] = useState('');
     const [salvando, setSalvando] = useState(false);
+    /** Agendamentos que o expediente ou a desativação deixam de fora; salvar de novo com a mesma chave confirma. */
+    const [impacto, setImpacto] = useState<{ chave: string; dados: ImpactoProfissional } | null>(null);
+    const [desativando, setDesativando] = useState<{
+        p: Profissional;
+        impacto: ImpactoProfissional;
+        /** `undefined` enquanto o Core responde; `null` sem pessoa ou sem resposta. */
+        pessoa: Pessoa | null | undefined;
+    } | null>(null);
+    const [desligarLogin, setDesligarLogin] = useState(true);
+    const [confirmandoDesativar, setConfirmandoDesativar] = useState(false);
+    const [erroDesativar, setErroDesativar] = useState('');
 
+    const chaveImpacto = JSON.stringify({ ativo, disponibilidades: intervalosDoExpediente(dias) });
+    const impactoAtual = impacto?.chave === chaveImpacto ? impacto.dados : null;
     const totalPaginas = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const cpfDigitos = somenteDigitos(cpf);
     const telDigitos = somenteDigitos(telefone);
@@ -191,6 +206,7 @@ export default function ProfissionaisPage() {
         setAtivo(true);
         setDias(expedientePadrao());
         setFormErro('');
+        setImpacto(null);
         setFormAberto(true);
     };
 
@@ -204,6 +220,7 @@ export default function ProfissionaisPage() {
         setAtivo(p.ativo);
         setDias(expedienteDeIntervalos(p.disponibilidades));
         setFormErro('');
+        setImpacto(null);
         setFormAberto(true);
         if (p.pessoaId) {
             const pedido = pedidoPessoa.current;
@@ -276,6 +293,16 @@ export default function ProfissionaisPage() {
         setSalvando(true);
         setFormErro('');
         try {
+            if (editando && impacto?.chave !== chaveImpacto) {
+                const dados = await profissionalService.impacto(editando.id, {
+                    ativo,
+                    disponibilidades: intervalosDoExpediente(dias),
+                });
+                if (dados.total > 0) {
+                    setImpacto({ chave: chaveImpacto, dados });
+                    return;
+                }
+            }
             let pessoaId = editando?.pessoaId ?? pessoaCriadaId ?? 0;
             if (pessoaId) {
                 await pessoaService.atualizar(pessoaId, payloadPessoa(), empresaId || undefined);
@@ -310,10 +337,60 @@ export default function ProfissionaisPage() {
     const alternarAtivo = async (p: Profissional) => {
         setErroLista('');
         try {
-            await profissionalService.alterarAtivo(p.id, !p.ativo);
+            if (p.ativo) {
+                const dados = await profissionalService.impacto(p.id, { ativo: false });
+                setDesligarLogin(true);
+                setErroDesativar('');
+                setDesativando({ p, impacto: dados, pessoa: p.pessoaId ? undefined : null });
+                if (p.pessoaId) {
+                    const definir = (pessoa: Pessoa | null) =>
+                        setDesativando((atual) => (atual?.p.id === p.id ? { ...atual, pessoa } : atual));
+                    pessoaService
+                        .obter(p.pessoaId)
+                        .then(definir)
+                        .catch(() => definir(null));
+                }
+                return;
+            }
+            await profissionalService.alterarAtivo(p.id, true);
             await carregar();
         } catch (e) {
             setErroLista(mensagemErroHttp(e));
+        }
+    };
+
+    const emailUsuario = (authService.getStoredUserInfo()?.email ?? '').trim().toLowerCase();
+    const loginDoDesativado = desativando?.pessoa?.podeLogar ? desativando.pessoa : null;
+    const ehOProprioUsuario =
+        !!loginDoDesativado && (loginDoDesativado.emailLogin ?? '').trim().toLowerCase() === emailUsuario;
+
+    const confirmarDesativar = async () => {
+        if (!desativando) return;
+        setConfirmandoDesativar(true);
+        setErroDesativar('');
+        try {
+            await profissionalService.alterarAtivo(desativando.p.id, false);
+            if (loginDoDesativado && desligarLogin && !ehOProprioUsuario && desativando.p.pessoaId) {
+                await pessoaService.atualizar(
+                    desativando.p.pessoaId,
+                    {
+                        ...loginDoDesativado,
+                        podeLogar: false,
+                        emailLogin: undefined,
+                        perfilAcessoId: undefined,
+                        senha: undefined,
+                        estaAtivo: true,
+                    },
+                    empresaId || undefined
+                );
+            }
+            setDesativando(null);
+            await carregar();
+        } catch (e) {
+            setErroDesativar(mensagemErroHttp(e));
+            await carregar();
+        } finally {
+            setConfirmandoDesativar(false);
         }
     };
 
@@ -492,7 +569,7 @@ export default function ProfissionaisPage() {
                             Cancelar
                         </Button>
                         <Button onClick={() => void salvar()} disabled={salvando || !podeSalvar}>
-                            {salvando ? 'Salvando…' : 'Salvar'}
+                            {salvando ? 'Salvando…' : impactoAtual ? 'Salvar mesmo assim' : 'Salvar'}
                         </Button>
                     </>
                 }
@@ -620,9 +697,78 @@ export default function ProfissionaisPage() {
                         descricao="Inativos continuam na lista e podem ser editados."
                     />
                 </div>
+                {!ativo && podeLogar && (
+                    <p className="mt-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        O login continua ligado. Se a pessoa não deve mais entrar no sistema, desligue “Pode fazer login”.
+                    </p>
+                )}
+                {impactoAtual && (
+                    <div className="mt-4">
+                        <AvisoImpacto
+                            impacto={impactoAtual}
+                            titulo={ativo ? 'Ficam fora do novo expediente' : `Ficam sem ${termos.um('recurso')}`}
+                        />
+                    </div>
+                )}
                 {formErro && (
                     <div className="mt-3">
                         <Alert titulo={tituloDeMensagem(formErro)}>{formErro}</Alert>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                aberto={desativando !== null}
+                titulo={desativando ? `Desativar ${desativando.p.nome}?` : ''}
+                eyebrow="Equipe"
+                subtitulo={`Sai da agenda para horários novos. O que já estava marcado continua visível na grade.`}
+                largura="32rem"
+                onClose={() => !confirmandoDesativar && setDesativando(null)}
+                rodape={
+                    <>
+                        <Button variant="ghost" onClick={() => setDesativando(null)} disabled={confirmandoDesativar}>
+                            Voltar
+                        </Button>
+                        <Button variant="danger" onClick={() => void confirmarDesativar()} disabled={confirmandoDesativar}>
+                            {confirmandoDesativar ? 'Desativando…' : 'Desativar'}
+                        </Button>
+                    </>
+                }
+            >
+                {desativando && desativando.impacto.total > 0 ? (
+                    <AvisoImpacto
+                        impacto={desativando.impacto}
+                        titulo={`${termos.agendamento.plural} ${termos.adj('agendamento', 'futuros')}`}
+                    />
+                ) : (
+                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        {`${termos.nenhum('agendamento')} ${termos.adj('agendamento', 'futuro')} em aberto.`}
+                    </p>
+                )}
+                {desativando?.pessoa === undefined && (
+                    <p className="mt-4 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        Verificando o login da pessoa…
+                    </p>
+                )}
+                {loginDoDesativado && (
+                    <div className="mt-4">
+                        {ehOProprioUsuario ? (
+                            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                Este é o seu login; ele continua ligado.
+                            </p>
+                        ) : (
+                            <Switch
+                                checked={desligarLogin}
+                                onChange={setDesligarLogin}
+                                label="Desligar o login"
+                                descricao={`${loginDoDesativado.emailLogin ?? 'A pessoa'} deixa de entrar no sistema. Dá para ligar de novo editando o cadastro.`}
+                            />
+                        )}
+                    </div>
+                )}
+                {erroDesativar && (
+                    <div className="mt-3">
+                        <Alert titulo={tituloDeMensagem(erroDesativar)}>{erroDesativar}</Alert>
                     </div>
                 )}
             </Modal>

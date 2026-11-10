@@ -26,6 +26,7 @@ import {
     paraDatetimeLocal,
     parseIsoData,
     partesDia,
+    profissionaisNaGrade,
     statusTerminal,
     transicoesDe,
     varianteStatus,
@@ -41,7 +42,7 @@ import {
     type SalvarAgendamento,
     rotuloServicos,
 } from '@/services/agendamento.service';
-import { bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
+import { bloqueiaProfissional, bloqueioService, type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -139,11 +140,12 @@ export default function AgendaPage() {
         return { de, ate: adicionarDias(de, 1) };
     }, [cursor, visao]);
 
+    const profissionaisAtivos = useMemo(() => opcoes.profissionais.filter((p) => p.ativo), [opcoes.profissionais]);
     const profissionaisVisiveis = useMemo(() => {
-        const lista = opcoes.profissionais;
+        const lista = profissionaisNaGrade(opcoes.profissionais, itens);
         if (!filtroProf) return lista;
         return lista.filter((p) => String(p.id) === filtroProf);
-    }, [opcoes.profissionais, filtroProf]);
+    }, [opcoes.profissionais, itens, filtroProf]);
 
     const diasSemana = useMemo(() => {
         const ini = inicioDaSemana(cursor);
@@ -261,7 +263,7 @@ export default function AgendaPage() {
         const servId = servico?.id;
         const profId =
             seed?.profissionalId ??
-            opcoes.profissionais.find((p) => !servico || atendeServicos([servico], p.id))?.id;
+            profissionaisAtivos.find((p) => !servico || atendeServicos([servico], p.id))?.id;
         const inicio = seed?.inicio ?? dataComMinutos(cloneDia(cursor), 9 * 60);
         setEditando(null);
         setRemarcando(null);
@@ -430,7 +432,7 @@ export default function AgendaPage() {
     });
     const servicosAgendaDoForm = opcoes.servicos.filter((s) => form.servicoIds.includes(s.id));
     const profissionaisDoForm = opcoes.profissionais.filter(
-        (p) => atendeServicos(servicosAgendaDoForm, p.id) || String(p.id) === form.profissionalId
+        (p) => (p.ativo && atendeServicos(servicosAgendaDoForm, p.id)) || String(p.id) === form.profissionalId
     );
     const profissionalNaoAtende =
         Boolean(form.profissionalId) && !atendeServicos(servicosAgendaDoForm, Number(form.profissionalId));
@@ -441,8 +443,9 @@ export default function AgendaPage() {
         const dias = visao === 'semana' ? diasSemana : [cursor];
         let cap = 0;
         for (const p of profissionaisVisiveis) {
+            const bloqueiosDele = bloqueios.filter((b) => bloqueiaProfissional(b, p.id));
             for (const d of dias) {
-                cap += minutosNoDia(p.disponibilidades, d);
+                cap += minutosNoDia(p.disponibilidades, d, bloqueiosDele);
             }
         }
         const usado = itens
@@ -450,7 +453,7 @@ export default function AgendaPage() {
             .reduce((acc, a) => acc + Math.max(0, (new Date(a.fim).getTime() - new Date(a.inicio).getTime()) / 60000), 0);
         if (cap <= 0) return 0;
         return Math.min(100, Math.round((usado / cap) * 100));
-    }, [visao, diasSemana, cursor, profissionaisVisiveis, itens]);
+    }, [visao, diasSemana, cursor, profissionaisVisiveis, itens, bloqueios]);
 
     return (
         <PageLayout
@@ -556,7 +559,7 @@ export default function AgendaPage() {
                                         <option value="">{`${termos.adj('recurso', 'Todos')} ${termos.adj('recurso', 'os')} ${termos.varios('recurso')}`}</option>
                                         {opcoes.profissionais.map((p) => (
                                             <option key={p.id} value={p.id}>
-                                                {p.nome}
+                                                {p.ativo ? p.nome : `${p.nome} (inativo)`}
                                             </option>
                                         ))}
                                     </CampoSelect>
@@ -742,7 +745,11 @@ export default function AgendaPage() {
                         <option value="">Selecione</option>
                         {profissionaisDoForm.map((p) => (
                             <option key={p.id} value={p.id}>
-                                {atendeServicos(servicosAgendaDoForm, p.id) ? p.nome : `${p.nome} (não atende)`}
+                                {!p.ativo
+                                    ? `${p.nome} (inativo)`
+                                    : atendeServicos(servicosAgendaDoForm, p.id)
+                                      ? p.nome
+                                      : `${p.nome} (não atende)`}
                             </option>
                         ))}
                     </CampoSelect>
@@ -984,7 +991,7 @@ export default function AgendaPage() {
                     setBloqueioSelecionado(null);
                 }}
                 onAlterado={() => void carregar()}
-                profissionais={opcoes.profissionais}
+                profissionais={profissionaisAtivos}
                 dia={cursor}
                 profissionalId={filtroProf ? Number(filtroProf) : undefined}
                 selecionado={bloqueioSelecionado}

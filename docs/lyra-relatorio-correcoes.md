@@ -17,7 +17,7 @@ Prioridade sugerida: **R-01, R-02** (segurança) → **R-03, R-06, R-07** (acess
 
 ## Situação em 10/11/2026
 
-**Corrigidos:** R-01, R-02, R-03, R-04, R-05, R-06, R-07, R-08, R-09, R-12, R-13, R-15, R-16, R-18, R-20, R-21, R-27, e o aviso de bloqueio de R-29 (conta só agendamentos em aberto). Os itens do backend foram validados por testes de API (114 de 114 passando).
+**Corrigidos:** R-01, R-02, R-03, R-04, R-05, R-06, R-07, R-08, R-09, R-10, R-11 (expediente; o fuso ainda não avisa), R-12, R-13, R-14, R-15, R-16, R-17, R-18, R-19 (com o botão Remarcar), R-20, R-21, R-27, R-30, R-31, e o aviso de bloqueio e o telefone único de R-29 (família). Os itens do backend foram validados por testes de API (114 de 114 passando).
 
 O que mudou para quem usa:
 - A API não sobe em produção sem `JWT_SECRET` e ignora os cabeçalhos `X-Empresa-Id`, `X-User-Roles` e afins.
@@ -32,7 +32,7 @@ O que mudou para quem usa:
 
 **A confirmar no Core:** se o Core também confere o token em `definir-senha-inicial` (R-05) e se substitui a lista de módulos ao salvar perfil (R-03). Também conferir se o `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`): a API aceita qualquer chave não vazia, e trocar exige mudar o oAuth junto.
 
-**Pendentes:** R-10, R-11, R-14, R-17, R-19, R-22, R-23 (cache no logout), R-24, R-25, R-26, R-28, R-30, R-31 e o resto de R-29.
+**Pendentes:** R-22, R-23 (cache no logout), R-24, R-25, R-26, R-28 e o resto de R-29.
 
 ---
 

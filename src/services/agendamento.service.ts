@@ -54,6 +54,8 @@ export interface ProfissionalAgenda {
     nome: string;
     cor: string;
     disponibilidades: IntervaloAgenda[];
+    /** Inativos só vêm enquanto ainda têm agendamentos; não recebem horários novos. */
+    ativo: boolean;
 }
 
 export interface ServicoAgenda {

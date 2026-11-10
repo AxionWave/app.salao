@@ -55,7 +55,8 @@ export default function GradeDia({
     const termos = useTermos();
     const limites = limitesGrade(
         profissionais.map((p) => p.disponibilidades),
-        dia
+        dia,
+        agendamentos.filter((a) => profissionais.some((p) => p.id === a.profissionalId))
     );
     const slots = gerarSlots(limites.inicio, limites.fim);
     const ehHoje = cloneDia(dia).getTime() === cloneDia(new Date()).getTime();
@@ -100,9 +101,11 @@ export default function GradeDia({
                                         {p.nome}
                                     </p>
                                     <p className="truncate text-[11px]" style={{ color: 'var(--faint)' }}>
-                                        {faixas.length
-                                            ? `${n} ${termos.contagem('agendamento', n)} · ${resumoFaixas(faixas)}`
-                                            : 'Folga'}
+                                        {!p.ativo
+                                            ? `Inativo · ${n} ${termos.contagem('agendamento', n)}`
+                                            : faixas.length
+                                              ? `${n} ${termos.contagem('agendamento', n)} · ${resumoFaixas(faixas)}`
+                                              : 'Folga'}
                                     </p>
                                 </div>
                             </div>
@@ -179,6 +182,16 @@ function ColunaProfissional({
         .map((b) => ({ b, f: faixaNoDia(b, dia) }))
         .filter((x): x is { b: Bloqueio; f: Faixa } => x.f !== null && x.f.fim > gradeInicio && x.f.inicio < gradeFim);
     const bloqueado = (m: number) => bloqueiosDoDia.some(({ f }) => m < f.fim && m + SLOT_MIN > f.inicio);
+    const ocupacoes = agendamentos
+        .filter((a) => ocupaHorario(a.status))
+        .map((a) => ({
+            inicio: minutosDoInstante(a.inicio),
+            fim: minutosDoInstante(a.fim) + (a.intervaloAposMinutos ?? 0),
+        }));
+    const ocupado = (m: number) => ocupacoes.some((o) => m >= o.inicio && m < o.fim);
+    const cancelados = agendamentos.filter((a) => !ocupaHorario(a.status));
+    const temCanceladoJunto = (a: Agendamento) =>
+        cancelados.some((c) => c.id !== a.id && c.inicio < a.fim && c.fim > a.inicio);
     return (
         <div
             className="relative border-l"
@@ -193,7 +206,7 @@ function ColunaProfissional({
             )}
             {faixas.length > 0 &&
                 slots.map((m, i) => {
-                    const livre = slotDentro(faixas, m) && !bloqueado(m);
+                    const livre = profissional.ativo && slotDentro(faixas, m) && !bloqueado(m) && !ocupado(m);
                     return (
                         <button
                             key={m}
@@ -231,7 +244,13 @@ function ColunaProfissional({
                 />
             ))}
             {agendamentos.map((a) => (
-                <BlocoAgendamento key={a.id} a={a} gradeInicio={gradeInicio} onAbrir={onAbrir} />
+                <BlocoAgendamento
+                    key={a.id}
+                    a={a}
+                    gradeInicio={gradeInicio}
+                    onAbrir={onAbrir}
+                    abrirEspaco={ocupaHorario(a.status) && temCanceladoJunto(a)}
+                />
             ))}
             {linhaAgora !== null && (
                 <div
@@ -289,14 +308,20 @@ function BlocoBloqueio({
     );
 }
 
+/** Cancelado vira uma faixa estreita à direita: continua clicável (para remarcar) sem tampar o horário. */
+const LARGURA_CANCELADO = '30%';
+
 function BlocoAgendamento({
     a,
     gradeInicio,
     onAbrir,
+    abrirEspaco,
 }: {
     a: Agendamento;
     gradeInicio: number;
     onAbrir: (a: Agendamento) => void;
+    /** Deixa à direita o espaço do cancelado que estava no mesmo horário. */
+    abrirEspaco: boolean;
 }) {
     const ini = minutosDoInstante(a.inicio);
     const fim = minutosDoInstante(a.fim);
@@ -305,12 +330,40 @@ function BlocoAgendamento({
     const cancelado = !ocupaHorario(a.status);
     const alto = height >= ROW_PX * 1.4;
     const preparo = cancelado ? 0 : a.intervaloAposMinutos ?? 0;
+    const lados = cancelado
+        ? { left: 'auto', right: '0.375rem', width: LARGURA_CANCELADO }
+        : { left: '0.375rem', right: abrirEspaco ? `calc(${LARGURA_CANCELADO} + 0.625rem)` : '0.375rem' };
+    if (cancelado) {
+        return (
+            <button
+                type="button"
+                onClick={() => onAbrir(a)}
+                className="lyra-agenda-bloco absolute z-[11] overflow-hidden rounded-lg px-1.5 py-1 text-left"
+                style={{
+                    ...lados,
+                    top,
+                    height,
+                    background: 'var(--panel2)',
+                    border: '1px dashed var(--line)',
+                }}
+                title={`${labelStatus(a.status)}: ${a.clienteNome} · ${formatarHora(a.inicio)}`}
+            >
+                <p className="truncate text-[10px] font-semibold line-through" style={{ color: 'var(--faint)' }}>
+                    {a.clienteNome}
+                </p>
+                <p className="truncate text-[10px]" style={{ color: 'var(--faint)' }}>
+                    {labelStatus(a.status)}
+                </p>
+            </button>
+        );
+    }
     return (
         <>
             {preparo > 0 && (
                 <div
-                    className="pointer-events-none absolute left-1.5 right-1.5 z-[9] rounded-b-lg px-2.5 text-[10px]"
+                    className="pointer-events-none absolute z-[9] rounded-b-lg px-2.5 text-[10px]"
                     style={{
+                        ...lados,
                         top: top + height,
                         height: Math.max(6, (preparo / SLOT_MIN) * ROW_PX),
                         background: `repeating-linear-gradient(135deg, color-mix(in oklab, ${corToken(a.profissionalCor)} 10%, transparent) 0 6px, transparent 6px 12px)`,
@@ -325,14 +378,14 @@ function BlocoAgendamento({
             <button
                 type="button"
                 onClick={() => onAbrir(a)}
-                className="lyra-agenda-bloco absolute left-1.5 right-1.5 z-10 overflow-hidden rounded-lg px-2.5 py-1.5 text-left"
+                className="lyra-agenda-bloco absolute z-10 overflow-hidden rounded-lg px-2.5 py-1.5 text-left"
                 style={{
+                    ...lados,
                     top,
                     height,
                     background: `color-mix(in oklab, ${corToken(a.profissionalCor)} 16%, var(--card))`,
                     border: `1px solid color-mix(in oklab, ${corToken(a.profissionalCor)} 35%, var(--line))`,
                     borderLeft: `3px solid ${corToken(a.profissionalCor)}`,
-                    opacity: cancelado ? 0.5 : 1,
                     boxShadow: 'var(--lyra-shadow-sm)',
                 }}
             >

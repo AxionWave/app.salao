@@ -34,6 +34,19 @@ export interface ListaProfissionais {
     pageSize: number;
 }
 
+export interface AgendamentoAfetado {
+    id: number;
+    inicio: string;
+    fim: string;
+    clienteNome: string;
+    status: string;
+}
+
+export interface ImpactoProfissional {
+    total: number;
+    itens: AgendamentoAfetado[];
+}
+
 const base = `${API_CONFIG.productBase}/profissionais`;
 
 export const profissionalService = {
@@ -64,6 +77,12 @@ export const profissionalService = {
 
     async alterarAtivo(id: number, ativo: boolean): Promise<Profissional> {
         const { data } = await lyraClient.patch<Profissional>(`${base}/${id}/ativo`, { ativo });
+        return data;
+    },
+
+    /** Agendamentos futuros em aberto que ficam sem atendimento (desativar) ou fora do novo expediente. */
+    async impacto(id: number, body: { ativo: boolean; disponibilidades?: Intervalo[] }): Promise<ImpactoProfissional> {
+        const { data } = await lyraClient.post<ImpactoProfissional>(`${base}/${id}/impacto`, body);
         return data;
     },
 };

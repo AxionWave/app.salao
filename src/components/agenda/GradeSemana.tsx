@@ -165,9 +165,9 @@ export default function GradeSemana({
                                     size="sm"
                                     variant="ghost"
                                     className="w-full"
-                                    disabled={Boolean(unico && faixasUnico.length === 0)}
+                                    disabled={Boolean(unico && (!unico.ativo || faixasUnico.length === 0))}
                                     onClick={() => {
-                                        const prof = unico ?? profissionais[0];
+                                        const prof = unico ?? profissionais.find((p) => p.ativo);
                                         if (!prof) return;
                                         const minutos = faixasNoDia(prof.disponibilidades, dia)[0]?.inicio ?? 9 * 60;
                                         onSlot(prof.id, dataComMinutos(dia, minutos));
