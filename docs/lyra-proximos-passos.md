@@ -24,7 +24,7 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 - [ ] O `JWT_SECRET` de produção não é o antigo valor de exemplo (trocar exige mudar no oAuth e na API ao mesmo tempo).
 - [ ] O Core confere o token em `definir-senha-inicial` (R-05) e substitui a lista de módulos ao salvar perfil (R-03).
 - [ ] Editar a pessoa sem `senha` não altera a senha atual (R-04).
-- [ ] A imagem Docker da API tem `tzdata` (R-25).
+- [x] A imagem Docker da API tem `tzdata` (R-25): conferido (versão 2026f, com Manaus e Lisboa), e o CI checa a cada execução.
 
 **Agenda**
 - [x] **R-17 — Trava contra dois agendamentos no mesmo horário.** `pg_advisory_xact_lock` por empresa e profissional ao criar, editar e remarcar. Testado com 10 pedidos simultâneos: só 1 grava.
@@ -41,7 +41,7 @@ Sem isto, o agendamento online gera horário duplicado e ninguém percebe uma re
 - [ ] R-26 fuso da empresa na grade.
 
 **Qualidade**
-- [ ] Testes unitários do `AgendamentoService` (conflito, expediente, preparo, bloqueio, status) e um e2e de API contra um Postgres descartável, rodando no GitHub Actions antes do deploy.
+- [x] Testes de integração em `api.salao/tests/Lyra.Tests` (43 casos: conflito, expediente com pausa, preparo, bloqueio, status, remarcação, concorrência, permissões com token assinado, isolamento entre empresas e profissionais inativos). Cada execução cria um Postgres descartável; o GitHub Actions roda em todo push na `develop` e o deploy em `production` só segue se passarem.
 - [ ] Logs estruturados e alerta de erro (Sentry ou Seq) na API e no front.
 - [ ] Validar com uma conta real no homolog: horários livres com pausa, preparo e bloqueio; configuração da empresa; perfil só com "Agendar".
 

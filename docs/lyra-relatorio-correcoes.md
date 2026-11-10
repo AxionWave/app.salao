@@ -35,7 +35,7 @@ O que mudou para quem usa:
 
 **A confirmar no Core:** se o Core também confere o token em `definir-senha-inicial` (R-05) e se substitui a lista de módulos ao salvar perfil (R-03). Também conferir se o `JWT_SECRET` de produção não é o antigo valor de exemplo (`defaultSecret…`): a API aceita qualquer chave não vazia, e trocar exige mudar o oAuth junto.
 
-**Pendentes:** R-25 (conferir `tzdata` na imagem) e R-26 (grade no fuso da empresa).
+**Pendentes:** R-26 (grade no fuso da empresa). O R-25 não se confirmou: a imagem tem `tzdata`, e o CI checa isso.
 
 ---
 
