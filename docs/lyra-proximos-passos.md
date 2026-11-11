@@ -1,6 +1,6 @@
 # Lyra — Próximas etapas de evolução
 
-Atualizado em 10/11/2026. Os códigos `R-xx` são os do [relatório de correções](./lyra-relatorio-correcoes.md).
+Atualizado em 11/11/2026. Os códigos `R-xx` são os do [relatório de correções](./lyra-relatorio-correcoes.md).
 
 A ordem das etapas segue as dependências: cada uma usa o que a anterior entrega. O agendamento online, por exemplo, precisa da trava contra horário duplicado (Etapa 0) e do envio de mensagens (Etapa 1) para o código de acesso e a confirmação.
 
@@ -87,14 +87,14 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
 - **Links de confirmação:** um token assinado e de uso único por agendamento (`/c/{token}`), que funciona sem login.
 
 ### Configuração por empresa
-- [ ] Ligar e desligar cada evento e cada canal, e definir os horários dos lembretes.
-- [ ] Textos com variáveis (`{cliente}`, `{servico}`, `{data}`, `{hora}`, `{endereco}`) e os nomes do segmento (sessão, consulta, horário).
+- [x] Ligar e desligar cada evento e cada canal, e definir os horários dos lembretes (o WhatsApp entra na mesma tela quando existir).
+- [x] Textos com variáveis (`{cliente}`, `{servico}`, `{data}`, `{hora}`, `{endereco}` e outras) e os nomes do segmento (sessão, consulta, horário).
 - [ ] Número de WhatsApp próprio da empresa (cada uma conecta o seu) ou o número da Lumen como padrão.
 - [ ] Limite de mensagens por plano, porque WhatsApp tem custo.
 
 ### LGPD
 - [ ] Consentimento do cliente para receber WhatsApp e e-mail, guardado com data e origem.
-- [ ] Link de "não quero mais receber" em todas as mensagens; respeitar isso no worker.
+- [x] Link de "não quero mais receber" em todos os e-mails; respeitar isso no worker (o WhatsApp terá o seu quando existir).
 - [x] Histórico de envios por cliente, visível na ficha (aba Mensagens).
 
 ### Entregas, em ordem
@@ -110,7 +110,7 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
 3. [x] E-mail: confirmação, remarcação, cancelamento, com `.ics` e link de confirmar.
    - Resend com o domínio `lyra.lumensoft.com.br` (SPF, DKIM e DMARC na Hostinger, região São Paulo, sem rastreio de abertura e clique). Remetente `naoresponda@`, com o nome da empresa como nome de exibição e `reply_to` para o e-mail dela.
    - Desde a AW.Mensageria, o `CanalEmail` monta o e-mail e pede o envio em `POST http://mensageria:8080/api/mensageria/envios` (token interno, `X-Origin-System: LYR`, chave `lyra-notificacao-{id}`). A chave do Resend (`RESEND_API_KEY`) e o remetente do Lyra ficam na Mensageria; na api.salao, sem `GATEWAY_INTERNAL_TOKEN` o canal nem é registrado. "Enviado" na ficha do cliente quer dizer que a Mensageria aceitou; destino descadastrado vira "falhou" com o motivo.
-   - Retorno da entrega: o webhook do Resend chega à Mensageria (`/api/mensageria/webhooks/resend`, público no Gateway e conferido pela assinatura Svix), que avisa a api.salao em `POST http://salao:8080/api/salao/internos/mensageria/envios` (token interno, novas tentativas se ela estiver fora do ar). Na ficha: **Entregue** quando o Resend confirma; **Falhou** com o motivo quando o e-mail volta, o Resend não entrega ou as tentativas acabam; e o aviso "marcou como spam" quando o cliente reclama. Devolução e spam põem o e-mail na lista de descadastros da Mensageria, compartilhada por todos os sistemas, e os próximos nem saem.
+   - Retorno da entrega: o webhook do Resend chega à Mensageria (`/api/mensageria/webhooks/resend`, público no Gateway e conferido pela assinatura Svix), que avisa a api.salao em `POST http://salao:8080/api/salao/internos/mensageria/envios` (token interno, novas tentativas se ela estiver fora do ar). Na ficha: **Entregue** quando o Resend confirma; **Falhou** com o motivo quando o e-mail volta, o Resend não entrega ou as tentativas acabam; e o aviso "marcou como spam" quando o cliente reclama. Devolução e spam põem o e-mail na lista de descadastros da Mensageria, valendo para todos os sistemas, e os próximos nem saem. O pedido do próprio cliente pelo link vale só para a empresa que mandou (veja a entrega 7).
    - Por empresa: `enviar_emails` em `lyra.empresa_config`, desligado por padrão, chave em Configurações. Os dados da empresa (nome, e-mail, telefone, endereço) são lidos de `core.empresas`.
    - Eventos: criado, remarcado, cancelado e confirmado (este só quando a equipe confirma; quando o próprio cliente confirma pelo link, a tela já mostra o resultado). O `.ics` usa o mesmo UID ao longo das remarcações e `METHOD:CANCEL` no cancelamento, então o celular atualiza o evento em vez de duplicar.
    - Sem envio em dobro: a mesma chave na Mensageria devolve o envio já criado, e a Mensageria manda ao Resend com `Idempotency-Key`. Pedido recusado (4xx, fora 408 e 429) falha na hora, sem novas tentativas.
@@ -130,7 +130,13 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
    - Envio: o canal `push` manda os mesmos eventos do sino (novo, remarcado, cancelado, confirmado pelo cliente) a todos os aparelhos da empresa, menos os de quem fez a ação. Cifra aes128gcm (RFC 8291) e VAPID (RFC 8292) feitos na própria API, sem biblioteca; só aceita endpoints do Google, Mozilla, Apple e Microsoft. Clicar na notificação abre a agenda do dia. Resposta 404/410 apaga a assinatura. O histórico da ficha do cliente não mostra o push.
    - Celular (abaixo de 768 px): o menu vira gaveta (botão ☰ no cabeçalho, com perfil, tema e Sair no rodapé), o cabeçalho fica fixo no topo e os botões da página descem para uma faixa abaixo dele. O sino abre em largura total. Tabelas viram cartões (`Table.Cell rotulo`), a semana vira lista por dia, o mês mostra só a contagem por dia e a grade do dia usa colunas mais estreitas. Campos com fonte de 16 px (o iPhone não dá zoom ao focar) e respiro para o entalhe e a barra inferior do iPhone (`env(safe-area-inset-*)`, `--lyra-safe-top`).
    - Chaves VAPID nos secrets `WEBPUSH_PUBLIC_KEY` e `WEBPUSH_PRIVATE_KEY` do api.salao. Sem elas o canal não liga e o botão não aparece. Trocar as chaves invalida as assinaturas existentes (cada aparelho precisa ativar de novo).
-7. [ ] Tela de configuração das notificações e textos.
+7. [x] Tela de configuração das notificações e textos.
+   - Configurações → **Avisos e mensagens** reúne o que antes ficava em Dados da empresa ("Avisar clientes por e-mail", lembretes e resumo do dia) e, por evento (marcado, alterado, cancelado, presença confirmada, lembrete), liga e desliga o **e-mail ao cliente** e o **celular da equipe** (push). O sino do painel mostra tudo sempre. Lembrete sem nenhum horário marcado fica desligado.
+   - Fica em `lyra.empresa_config.avisos` (jsonb). Evento que não está lá vale ligado e com o texto padrão, então empresas antigas continuam como estavam. Ligar e desligar vale ao pôr na fila; os textos são lidos na hora do envio.
+   - **Editar texto** troca o assunto e o primeiro parágrafo de cada e-mail, com variáveis (`{cliente}` primeiro nome, `{servico}`, `{profissional}`, `{data}`, `{hora}`, `{dia}` hoje/amanhã/data, `{quando}`, `{quando_anterior}`, `{empresa}`, `{endereco}`, `{telefone}`). Variável desconhecida é recusada; assunto até 150 caracteres e mensagem até 1000 (quebra de linha vira `<br>`). Texto igual ao padrão ou em branco volta a ser o padrão. O resto do e-mail (data, serviços, endereço, botões) é fixo. Prévia ao vivo com dados de exemplo da empresa (`POST /api/salao/configuracao/avisos/previa`) e botão "Restaurar padrão".
+   - **Recado em todo e-mail** (até 500 caracteres, aceita as mesmas variáveis): caixa em destaque em todos os e-mails ao cliente, menos no de cancelamento.
+   - Rotas: `GET` e `PUT /api/salao/configuracao/avisos`, com o módulo Configurações.
+   - **Não quero mais receber:** todo e-mail tem o link no rodapé e os cabeçalhos `List-Unsubscribe` e `List-Unsubscribe-Post` (cancelar com um clique no Gmail e no Outlook). Quem monta o link é a Mensageria, com o código do envio (`https://api.lumensoft.com.br/api/mensageria/publico/descadastro/env_…`, público no Gateway). A página pede confirmação antes de descadastrar (leitores de link de antivírus abrem o GET) e oferece "Voltar a receber". O descadastro pelo link vale para o sistema e a empresa daquele e-mail; os próximos envios dela para esse endereço saem como "descadastrado".
 
 ---
 

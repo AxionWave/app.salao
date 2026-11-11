@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Input, Modal, Switch, Table, Textarea } from '@/c
 import { authService } from '@core/services';
 import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import ConfiguracaoEmpresa from '@/components/ConfiguracaoEmpresa';
+import AvisosEMensagens from '@/components/AvisosEMensagens';
 import { useTermos } from '@/contexts/TermosContext';
 import {
     CATALOGO_FLAGS,
@@ -161,6 +162,7 @@ export default function ConfiguracoesPage() {
         >
             <div className="flex min-h-0 flex-1 flex-col gap-4">
             <ConfiguracaoEmpresa />
+            <AvisosEMensagens />
             <PageCard>
                 <p className="mb-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
                     Defina o que cada perfil pode fazer no Lyra (agendar, clientes, serviços, relatório,
