@@ -102,8 +102,12 @@ export default function LoginPage() {
 
             <section className="relative flex min-h-[100dvh] flex-1 flex-col">
                 <div
-                    className="flex items-center justify-between px-4 py-4 lg:hidden"
-                    style={{ background: 'var(--lyra-sidebar)', color: 'var(--lyra-sidebar-fg)' }}
+                    className="flex items-center justify-between px-4 pb-4 lg:hidden"
+                    style={{
+                        background: 'var(--lyra-sidebar)',
+                        color: 'var(--lyra-sidebar-fg)',
+                        paddingTop: 'calc(1rem + var(--lyra-safe-top))',
+                    }}
                 >
                     <span className="font-display text-lg font-semibold">{APP_CONFIG.nome}</span>
                     <ThemeToggle />

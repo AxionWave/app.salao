@@ -256,6 +256,7 @@ export default function ServicosPage() {
         >
             <PageCard>
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end">
+                    <div className="flex items-end gap-2 lg:contents">
                     <Input
                         label="Buscar"
                         placeholder="Nome ou categoria"
@@ -265,9 +266,10 @@ export default function ServicosPage() {
                             if (e.key === 'Enter') aplicarFiltro();
                         }}
                     />
-                    <Button variant="secondary" onClick={aplicarFiltro}>
+                    <Button variant="secondary" className="shrink-0" onClick={aplicarFiltro}>
                         Filtrar
                     </Button>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                         {([
                             ['todos', 'Todos'],
@@ -331,8 +333,8 @@ export default function ServicosPage() {
                                                 {s.nome}
                                             </span>
                                         </Table.Cell>
-                                        <Table.Cell>{s.categoria || '—'}</Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="Categoria">{s.categoria || '—'}</Table.Cell>
+                                        <Table.Cell rotulo="Duração">
                                             {formatarDuracao(s.duracaoMinutos)}
                                             {s.intervaloAposMinutos > 0 && (
                                                 <span className="block text-xs" style={{ color: 'var(--faint)' }}>
@@ -340,7 +342,7 @@ export default function ServicosPage() {
                                                 </span>
                                             )}
                                         </Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="Quem atende">
                                             {resumoQuemAtende(s.profissionalIds ?? [])}
                                             {semQuemAtenda(s.profissionalIds ?? []) && (
                                                 <span className="mt-1 block">
@@ -350,8 +352,8 @@ export default function ServicosPage() {
                                                 </span>
                                             )}
                                         </Table.Cell>
-                                        <Table.Cell>{brl.format(s.preco)}</Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="Preço">{brl.format(s.preco)}</Table.Cell>
+                                        <Table.Cell rotulo="Status">
                                             <Badge variant={s.ativo ? 'ok' : 'faint'} size="sm">
                                                 {s.ativo ? 'Ativo' : 'Inativo'}
                                             </Badge>

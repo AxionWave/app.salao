@@ -3,7 +3,7 @@ import type { HTMLAttributes, ReactNode, TdHTMLAttributes } from 'react';
 function TableRoot({ children, className = '', ...props }: HTMLAttributes<HTMLTableElement> & { children: ReactNode }) {
     return (
         <div className="overflow-x-auto rounded-lyra border" style={{ borderColor: 'var(--line)', background: 'var(--card)' }}>
-            <table {...props} className={`min-w-full divide-y text-sm ${className}`} style={{ borderColor: 'var(--line)', color: 'var(--muted-foreground)' }}>
+            <table {...props} className={`lyra-tabela min-w-full divide-y text-sm ${className}`} style={{ borderColor: 'var(--line)', color: 'var(--muted-foreground)' }}>
                 {children}
             </table>
         </div>
@@ -38,9 +38,15 @@ function Row({ children, className = '', ...props }: HTMLAttributes<HTMLTableRow
     );
 }
 
-function Cell({ children, className = '', ...props }: TdHTMLAttributes<HTMLTableCellElement> & { children?: ReactNode }) {
+/** `rotulo`: nome da coluna, mostrado acima do valor quando a tabela vira cartões no celular. */
+function Cell({
+    children,
+    className = '',
+    rotulo,
+    ...props
+}: TdHTMLAttributes<HTMLTableCellElement> & { children?: ReactNode; rotulo?: string }) {
     return (
-        <td {...props} className={`px-5 py-3.5 ${className}`}>
+        <td {...props} data-rotulo={rotulo} className={`px-5 py-3.5 ${className}`}>
             {children}
         </td>
     );

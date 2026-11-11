@@ -295,7 +295,7 @@ export default function InicioPage() {
             )}
 
             {temAgenda && (
-                <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                     <CardKpi
                         rotulo="Hoje"
                         valor={carregando ? '…' : String(ativosHoje.length)}
@@ -318,7 +318,7 @@ export default function InicioPage() {
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
                 <div className="lyra-card lyra-card-quiet flex min-h-0 flex-col overflow-hidden">
                     <div
-                        className="flex flex-col gap-3 border-b px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                        className="flex flex-col gap-3 border-b px-3 py-3 sm:px-5 sm:py-4 lg:flex-row lg:items-center lg:justify-between"
                         style={{ borderColor: 'var(--line)' }}
                     >
                         <div className="min-w-0">
@@ -392,7 +392,7 @@ export default function InicioPage() {
                             </div>
                         )}
                     </div>
-                    <div className="min-h-0 flex-1 overflow-x-auto p-4 md:p-5">
+                    <div className="min-h-0 flex-1 overflow-x-auto p-2 sm:p-4 md:p-5">
                         {!temAgenda && (
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                                 Sem permissão de agenda neste perfil.
@@ -450,12 +450,12 @@ export default function InicioPage() {
                 </div>
 
                 <div className="flex flex-col gap-4">
-                    <div className="lyra-card lyra-card-quiet p-5">
+                    <div className="lyra-card lyra-card-quiet p-4 sm:p-5">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--copper)' }}>
                             Ação rápida
                         </p>
                         <h3 className="mt-1 font-display text-lg font-semibold">Atalhos</h3>
-                        <div className="mt-3 flex flex-col gap-1.5">
+                        <div className="mt-3 grid grid-cols-2 gap-1.5 xl:grid-cols-1">
                             {acoes.length === 0 && (
                                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                                     Nenhum atalho neste perfil.
@@ -478,7 +478,7 @@ export default function InicioPage() {
                     </div>
 
                     {temAgenda && (
-                        <div className="lyra-card lyra-card-quiet p-5">
+                        <div className="lyra-card lyra-card-quiet p-4 sm:p-5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--copper)' }}>
                                 Hoje
                             </p>
@@ -617,11 +617,11 @@ export default function InicioPage() {
 
 function CardKpi({ rotulo, valor, detalhe }: { rotulo: string; valor: string; detalhe: string }) {
     return (
-        <div className="lyra-card lyra-card-quiet px-4 py-4">
+        <div className="lyra-card lyra-card-quiet px-3 py-3 sm:px-4 sm:py-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--faint)' }}>
                 {rotulo}
             </p>
-            <p className="mt-1 font-display text-3xl font-semibold tabular-nums">{valor}</p>
+            <p className="mt-1 font-display text-2xl font-semibold tabular-nums sm:text-3xl">{valor}</p>
             <p className="mt-0.5 text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
                 {detalhe}
             </p>

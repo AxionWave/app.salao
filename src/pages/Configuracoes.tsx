@@ -222,7 +222,7 @@ export default function ConfiguracoesPage() {
                                                 )}
                                             </div>
                                         </Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="Permissões" className="col-span-2">
                                             <p className="max-w-md text-xs" style={{ color: 'var(--muted-foreground)' }}>
                                                 {rotuloFlags(flagsP, termos)}
                                             </p>

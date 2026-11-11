@@ -70,7 +70,7 @@ export default function ConfirmarPresencaPage() {
 
     return (
         <div
-            className="flex min-h-[100dvh] items-center justify-center px-4 py-10"
+            className="flex min-h-[100dvh] items-center justify-center px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[calc(2.5rem+var(--lyra-safe-top))]"
             style={{ background: 'var(--lyra-bg)', color: 'var(--lyra-text)' }}
         >
             <div

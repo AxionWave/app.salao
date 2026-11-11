@@ -70,6 +70,7 @@
         --lyra-success: var(--ok);
         --lyra-radius: var(--radius);
         --lyra-header-height: 4.5rem;
+        --lyra-safe-top: env(safe-area-inset-top, 0px);
         --lyra-shadow-sm: 0 1px 2px oklch(0.22 0.02 265 / 0.06);
         --lyra-shadow-md: 0 8px 24px oklch(0.22 0.02 265 / 0.08);
 
@@ -142,6 +143,21 @@
         background-color: var(--background);
         color: var(--foreground);
         -webkit-font-smoothing: antialiased;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    @media (max-width: 767px) {
+        :root {
+            --lyra-header-height: 3.75rem;
+        }
+
+        /* Abaixo de 16px o Safari do iPhone dá zoom na tela ao focar o campo. */
+        input,
+        select,
+        textarea {
+            font-size: 16px !important;
+        }
     }
 
     /* Só o texto «Mostrar»; esconde o olho nativo do Edge/Chrome */
@@ -155,6 +171,54 @@
         width: 0;
         height: 0;
         margin: 0;
+    }
+}
+
+/* No celular cada linha vira um cartão: a primeira célula (nome) e a última (ações) ocupam a largura toda,
+   as do meio ficam em duas colunas com o nome da coluna (`data-rotulo`) em cima. */
+@media (max-width: 767px) {
+    table.lyra-tabela thead {
+        display: none;
+    }
+
+    table.lyra-tabela,
+    table.lyra-tabela tbody {
+        display: block;
+        width: 100%;
+    }
+
+    table.lyra-tabela tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.625rem 1rem;
+        padding: 0.875rem 1rem;
+    }
+
+    table.lyra-tabela td {
+        display: block;
+        padding: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    table.lyra-tabela td:first-child,
+    table.lyra-tabela td:last-child {
+        grid-column: 1 / -1;
+    }
+
+    table.lyra-tabela td:last-child > div {
+        justify-content: flex-start;
+    }
+
+    table.lyra-tabela td[data-rotulo]::before {
+        content: attr(data-rotulo);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--faint);
     }
 }
 

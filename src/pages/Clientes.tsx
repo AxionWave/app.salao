@@ -176,6 +176,7 @@ export default function ClientesPage() {
         >
             <PageCard>
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end">
+                    <div className="flex items-end gap-2 lg:contents">
                     <Input
                         label="Buscar"
                         placeholder="Nome ou telefone"
@@ -185,9 +186,10 @@ export default function ClientesPage() {
                             if (e.key === 'Enter') aplicarFiltro();
                         }}
                     />
-                    <Button variant="secondary" onClick={aplicarFiltro}>
+                    <Button variant="secondary" className="shrink-0" onClick={aplicarFiltro}>
                         Filtrar
                     </Button>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                         {([
                             ['todos', 'Todos'],
@@ -260,11 +262,11 @@ export default function ClientesPage() {
                                                 </p>
                                             ) : null}
                                         </Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="Telefone">
                                             <span className="tabular-nums">{formatarTelefoneExibicao(c.telefone)}</span>
                                         </Table.Cell>
-                                        <Table.Cell>{c.email || '—'}</Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="E-mail">{c.email || '—'}</Table.Cell>
+                                        <Table.Cell rotulo="Status">
                                             <Badge variant={c.ativo ? 'ok' : 'faint'} size="sm">
                                                 {c.ativo ? 'Ativo' : 'Inativo'}
                                             </Badge>

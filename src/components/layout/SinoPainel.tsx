@@ -153,13 +153,13 @@ export default function SinoPainel() {
 
             {aberto && (
                 <div
-                    className="absolute right-0 top-11 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lyra border shadow-lg"
+                    className="fixed inset-x-2 top-[calc(var(--lyra-safe-top)+var(--lyra-header-height)+0.25rem)] z-50 flex max-h-[calc(100dvh-var(--lyra-safe-top)-var(--lyra-header-height)-1rem)] flex-col overflow-hidden rounded-lyra border shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-11 md:max-h-none md:w-80"
                     style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
                     role="dialog"
                     aria-label="Avisos da agenda"
                 >
                     <p
-                        className="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.15em]"
+                        className="shrink-0 border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.15em]"
                         style={{ borderColor: 'var(--line)', color: 'var(--faint)' }}
                     >
                         Avisos da agenda
@@ -169,7 +169,7 @@ export default function SinoPainel() {
                             Nenhum aviso por enquanto. Quando alguém marcar, alterar ou cancelar, aparece aqui.
                         </p>
                     ) : (
-                        <ul className="max-h-96 overflow-y-auto">
+                        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain md:max-h-96">
                             {itens.map((a) => (
                                 <li key={a.id}>
                                     <button

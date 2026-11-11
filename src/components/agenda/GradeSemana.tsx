@@ -16,6 +16,7 @@ import { hojeNaEmpresa } from '@/lib/fuso';
 import { rotuloServicos, type Agendamento, type ProfissionalAgenda } from '@/services/agendamento.service';
 import { type Bloqueio } from '@/services/bloqueio.service';
 import { useTermos } from '@/contexts/TermosContext';
+import { useTelaLarga } from '@/lib/useMediaQuery';
 
 export default function GradeSemana({
     dias,
@@ -39,14 +40,15 @@ export default function GradeSemana({
     compact?: boolean;
 }) {
     const termos = useTermos();
+    const telaLarga = useTelaLarga();
     const hoje = hojeNaEmpresa();
     const unico = profissionais.length === 1 ? profissionais[0] : null;
 
     return (
         <div className="overflow-x-auto">
             <div
-                className={`grid gap-2.5 ${compact ? 'min-w-[44rem]' : 'min-w-[56rem]'}`}
-                style={{ gridTemplateColumns: 'repeat(7, minmax(7.5rem, 1fr))' }}
+                className={`grid gap-2.5 ${!telaLarga ? '' : compact ? 'min-w-[44rem]' : 'min-w-[56rem]'}`}
+                style={{ gridTemplateColumns: telaLarga ? 'repeat(7, minmax(7.5rem, 1fr))' : '1fr' }}
             >
                 {dias.map((dia) => {
                     const rotulo = formatarDiaColuna(dia);
@@ -62,7 +64,7 @@ export default function GradeSemana({
                     return (
                         <div
                             key={dia.toISOString()}
-                            className={`flex flex-col overflow-hidden rounded-lyra border ${compact ? 'min-h-[16rem]' : 'min-h-[22rem]'}`}
+                            className={`flex flex-col overflow-hidden rounded-lyra border ${!telaLarga ? '' : compact ? 'min-h-[16rem]' : 'min-h-[22rem]'}`}
                             style={{
                                 borderColor: ehHoje ? 'var(--copper)' : 'var(--line)',
                                 background: 'var(--panel)',
@@ -155,7 +157,7 @@ export default function GradeSemana({
                                         </div>
                                         <p className="truncate text-xs font-medium">{a.clienteNome}</p>
                                         <p className="truncate text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
-                                            {rotuloServicos(a)}
+                                            {telaLarga ? rotuloServicos(a) : `${a.profissionalNome} · ${rotuloServicos(a)}`}
                                         </p>
                                     </button>
                                 ))}

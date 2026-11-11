@@ -30,18 +30,18 @@ export default function GradeMes({
 
     return (
         <div>
-            <div className="mb-1.5 grid grid-cols-7 gap-1.5">
+            <div className="mb-1.5 grid grid-cols-7 gap-1 sm:gap-1.5">
                 {SEMANA.map((d) => (
                     <p
                         key={d}
-                        className="px-1 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.12em]"
+                        className="py-1 text-center text-[10px] font-semibold uppercase tracking-[0.06em] sm:px-1 sm:text-[11px] sm:tracking-[0.12em]"
                         style={{ color: 'var(--faint)' }}
                     >
                         {d}
                     </p>
                 ))}
             </div>
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                 {dias.map((dia) => {
                     const doMes = dia.getMonth() === mesRef && dia.getFullYear() === anoRef;
                     const ehHoje = dia.getTime() === hoje.getTime();
@@ -56,7 +56,7 @@ export default function GradeMes({
                             key={dia.toISOString()}
                             type="button"
                             onClick={() => onDia(dia)}
-                            className="flex min-h-[5.75rem] flex-col rounded-lyra border px-1.5 py-1.5 text-left transition hover:border-[color-mix(in_oklab,var(--copper)_45%,transparent)]"
+                            className="flex min-h-[3.25rem] min-w-0 flex-col rounded-lyra border px-1 py-1 text-left transition sm:min-h-[5.75rem] sm:px-1.5 sm:py-1.5 hover:border-[color-mix(in_oklab,var(--copper)_45%,transparent)]"
                             style={{
                                 borderColor: ehHoje ? 'var(--copper)' : 'var(--line)',
                                 background: ehHoje
@@ -78,12 +78,32 @@ export default function GradeMes({
                                     {dia.getDate()}
                                 </span>
                                 {ativos.length > 0 && (
-                                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
+                                    <span className="hidden text-[10px] tabular-nums sm:inline" style={{ color: 'var(--muted-foreground)' }}>
                                         {ativos.length}
                                     </span>
                                 )}
                             </div>
-                            <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5">
+                            <div className="mt-auto flex items-center gap-1 sm:hidden">
+                                {ativos.length > 0 && (
+                                    <span
+                                        className="rounded-full px-1.5 text-[10px] font-semibold leading-4 tabular-nums"
+                                        style={{
+                                            background: 'color-mix(in oklab, var(--copper) 22%, var(--card))',
+                                            color: 'var(--ink)',
+                                        }}
+                                    >
+                                        {ativos.length}
+                                    </span>
+                                )}
+                                {bloqueio && (
+                                    <span
+                                        className="h-2 w-2 shrink-0 rounded-full border border-dashed"
+                                        style={{ borderColor: 'var(--muted-foreground)' }}
+                                        title={bloqueio.motivo || 'Bloqueado'}
+                                    />
+                                )}
+                            </div>
+                            <div className="mt-1 hidden min-h-0 flex-1 flex-col gap-0.5 sm:flex">
                                 {bloqueio && (
                                     <span
                                         className="truncate rounded-sm border border-dashed px-1 py-0.5 text-[10px] leading-tight"

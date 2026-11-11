@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useTelaLarga } from '@/lib/useMediaQuery';
 import {
     ROW_PX,
     SLOT_MIN,
@@ -88,6 +89,7 @@ export default function GradeDia({
     onBloqueio?: (b: Bloqueio) => void;
 }) {
     const termos = useTermos();
+    const telaLarga = useTelaLarga();
     const caixaRef = useRef<HTMLDivElement>(null);
     const cabecalhoRef = useRef<HTMLDivElement>(null);
     const alturaCaixa = useAlturaCaixa(caixaRef, altura);
@@ -112,7 +114,8 @@ export default function GradeDia({
         ehHoje && agoraMin >= limites.inicio && agoraMin < limites.fim
             ? ((agoraMin - limites.inicio) / SLOT_MIN) * linha
             : null;
-    const cols = `3.75rem repeat(${Math.max(profissionais.length, 1)}, minmax(12rem, 1fr))`;
+    const colunaMinRem = telaLarga ? 12 : 9.5;
+    const cols = `3.75rem repeat(${Math.max(profissionais.length, 1)}, minmax(${colunaMinRem}rem, 1fr))`;
 
     const rolouPara = useRef('');
     useEffect(() => {
@@ -129,7 +132,10 @@ export default function GradeDia({
             className="overflow-auto"
             style={{ height: altura ?? (alturaCaixa !== null ? alturaCaixa : undefined) }}
         >
-            <div className="min-w-[42rem]">
+            <div
+                className="md:min-w-[42rem]"
+                style={{ minWidth: `calc(3.75rem + ${Math.max(profissionais.length, 1)} * ${colunaMinRem}rem)` }}
+            >
                 <div ref={cabecalhoRef} className="sticky top-0 z-30 grid" style={{ gridTemplateColumns: cols }}>
                     <div
                         className="sticky top-0 z-30 border-b"

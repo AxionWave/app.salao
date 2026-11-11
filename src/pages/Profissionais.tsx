@@ -422,6 +422,7 @@ export default function ProfissionaisPage() {
         >
             <PageCard>
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end">
+                    <div className="flex items-end gap-2 lg:contents">
                     <Input
                         label="Buscar"
                         placeholder="Nome"
@@ -431,9 +432,10 @@ export default function ProfissionaisPage() {
                             if (e.key === 'Enter') aplicarFiltro();
                         }}
                     />
-                    <Button variant="secondary" onClick={aplicarFiltro}>
+                    <Button variant="secondary" className="shrink-0" onClick={aplicarFiltro}>
                         Filtrar
                     </Button>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                         {([
                             ['todos', 'Todos'],
@@ -499,8 +501,8 @@ export default function ProfissionaisPage() {
                                                 {p.nome}
                                             </span>
                                         </Table.Cell>
-                                        <Table.Cell>{resumoExpediente(p.disponibilidades)}</Table.Cell>
-                                        <Table.Cell>
+                                        <Table.Cell rotulo="Expediente">{resumoExpediente(p.disponibilidades)}</Table.Cell>
+                                        <Table.Cell rotulo="Status">
                                             <Badge variant={p.ativo ? 'ok' : 'faint'} size="sm">
                                                 {p.ativo ? 'Ativo' : 'Inativo'}
                                             </Badge>

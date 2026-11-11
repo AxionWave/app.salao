@@ -43,7 +43,7 @@ export default function AvisosNoAparelho() {
     );
 
     return (
-        <div className="border-t px-4 py-3" style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}>
+        <div className="shrink-0 border-t px-4 py-3" style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}>
             {estado === 'instalar' &&
                 texto(
                     'var(--muted-foreground)',

@@ -486,10 +486,10 @@ export default function AgendaPage() {
             <PageCard padded={false} className="lyra-card-quiet">
                 <div className="flex min-h-0 flex-1 flex-col">
                     <div
-                        className="shrink-0 border-b px-5 py-4 md:px-6"
+                        className="shrink-0 border-b px-3 py-3 md:px-6 md:py-4"
                         style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
                     >
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div className="flex min-w-0 items-center gap-3">
                                 <div className="flex items-center gap-1">
                                     <Button
@@ -521,7 +521,7 @@ export default function AgendaPage() {
                                             >
                                                 {partes.semana}
                                             </p>
-                                            <h2 className="truncate font-display text-xl font-semibold tracking-tight md:text-2xl">
+                                            <h2 className="truncate font-display text-lg font-semibold tracking-tight md:text-2xl">
                                                 {tituloPeriodo}
                                             </h2>
                                         </>
@@ -533,14 +533,14 @@ export default function AgendaPage() {
                                             >
                                                 Semana
                                             </p>
-                                            <h2 className="truncate font-display text-xl font-semibold tracking-tight md:text-2xl">
+                                            <h2 className="truncate font-display text-lg font-semibold tracking-tight md:text-2xl">
                                                 {tituloPeriodo}
                                             </h2>
                                         </>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex flex-wrap items-end gap-3">
+                            <div className="flex flex-wrap items-end gap-2 md:gap-3">
                                 <div
                                     className="flex rounded-lyra border p-0.5"
                                     style={{ borderColor: 'var(--line)', background: 'var(--panel2)' }}
@@ -581,7 +581,7 @@ export default function AgendaPage() {
                             </div>
                         </div>
                         {!carregando && opcoes.profissionais.length > 0 && (
-                            <div className="mt-4 flex flex-wrap gap-2">
+                            <div className="mt-4 hidden flex-wrap gap-2 sm:flex">
                                 <ResumoChip
                                     rotulo={termos.agendamento.plural}
                                     valor={String(horariosAtivos)}
@@ -601,7 +601,7 @@ export default function AgendaPage() {
                         )}
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-auto px-5 py-4 md:px-6">
+                    <div className="min-h-0 flex-1 overflow-auto px-2 py-2 md:px-6 md:py-4">
                         {erroLista && (
                             <div className="mb-4">
                                 <Alert titulo={tituloDeMensagem(erroLista)}>{erroLista}</Alert>

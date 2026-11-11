@@ -98,6 +98,7 @@ export default function Modal({
                         : undefined,
                     background: 'var(--card)',
                     boxShadow: 'var(--lyra-shadow-md), 0 0 0 1px color-mix(in oklab, var(--copper) 12%, transparent)',
+                    paddingTop: lateral ? 'var(--lyra-safe-top)' : undefined,
                 }}
             >
                 <div
@@ -105,7 +106,7 @@ export default function Modal({
                     style={{ background: 'var(--gradient-copper)' }}
                     aria-hidden
                 />
-                <div className="relative shrink-0 px-6 pb-4 pr-16 pt-5">
+                <div className="relative shrink-0 px-4 pb-4 pr-14 pt-5 sm:px-6 sm:pr-16">
                     {eyebrow && (
                         <p
                             className="text-[11px] font-semibold uppercase tracking-[0.18em]"
@@ -128,7 +129,7 @@ export default function Modal({
                     )}
                     <button
                         type="button"
-                        className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full"
+                        className="absolute right-4 top-5 flex h-9 w-9 items-center justify-center rounded-full sm:right-5 sm:h-8 sm:w-8"
                         style={{
                             color: 'var(--faint)',
                             border: '1px solid var(--line)',
@@ -147,11 +148,12 @@ export default function Modal({
                         </svg>
                     </button>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-1">{children}</div>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-1 sm:px-6">{children}</div>
                 {rodape && (
                     <div
-                        className="mt-auto flex shrink-0 justify-end gap-2 border-t px-6 py-4"
+                        className="mt-auto flex shrink-0 flex-wrap justify-end gap-2 border-t px-4 pt-4 sm:px-6"
                         style={{
+                            paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
                             borderColor: 'var(--line)',
                             background: 'color-mix(in oklab, var(--panel2) 70%, transparent)',
                         }}
