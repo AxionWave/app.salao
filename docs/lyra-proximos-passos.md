@@ -109,6 +109,8 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
    - Envio com `Idempotency-Key` por notificação; erro 4xx do Resend (fora 408, 409 e 429) falha na hora, sem novas tentativas.
    - Link `/c/{token}`: token assinado (HMAC) com o id do agendamento, sem login, via `GET /api/salao/publico/agendamentos/{token}` e `POST .../confirmar`. Só confirma agendamento futuro e ainda "agendado". O Gateway tem a rota `salao-public` sem o filtro de JWT.
    - Aba **Mensagens** na ficha do cliente com o histórico de envios.
+   - Visual: logo da empresa (ou iniciais), selo e cor por evento, bloco de data com início, fim e duração, serviços com duração e valor e o total (sem valores no cancelamento), horário anterior riscado na remarcação, botões Google Agenda, Como chegar e WhatsApp (só celular). A versão em texto puro leva as mesmas informações. Os itens (nome, duração e preço) passaram a ser gravados em `dados` da notificação; notificações antigas saem só com os nomes.
+   - Logo: enviado no ASC (Administração da Empresa) para o AW.Arquivos como imagem pública (PNG, JPG, WebP ou GIF, até 2 MB, conferida pelos bytes; SVG não). O Core guarda o token em `core.empresas.logo_token` (`PATCH /api/empresas/{id}/logo`), o Gateway serve `/api/arquivos/publico/{token}` sem JWT e o e-mail monta a URL com `Email:UrlArquivos` (padrão `https://api.lumensoft.com.br`). Se a coluna ainda não existir no Core, o e-mail sai sem logo.
 4. [ ] WhatsApp: modelos aprovados, envio, webhook dos botões.
 5. [ ] Lembretes agendados e resumo do dia do profissional.
 6. [ ] PWA e Web Push.
