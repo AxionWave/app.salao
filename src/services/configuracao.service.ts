@@ -25,6 +25,10 @@ export interface ConfiguracaoEmpresa {
     personalizada: boolean;
     dataAtualizacao: string | null;
     enviarEmails: boolean;
+    /** Horas antes do início em que o cliente recebe lembrete; vazio = nenhum. */
+    lembretesHoras: number[];
+    /** Profissionais recebem a agenda do dia por e-mail às 7h. */
+    resumoDiario: boolean;
 }
 
 export interface Segmento {
@@ -48,6 +52,8 @@ export interface SalvarConfiguracao {
     fusoHorario: string;
     terminologia: Terminologia | null;
     enviarEmails?: boolean;
+    lembretesHoras?: number[];
+    resumoDiario?: boolean;
 }
 
 const base = `${API_CONFIG.productBase}/configuracao`;

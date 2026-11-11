@@ -18,6 +18,11 @@ const CONCEITOS: { chave: ChaveTermo; nome: string; dica: string }[] = [
     { chave: 'agendamento', nome: 'Item da agenda', dica: 'Horário, consulta, reserva…' },
 ];
 
+const LEMBRETES: { horas: number; nome: string }[] = [
+    { horas: 24, nome: '1 dia antes' },
+    { horas: 2, nome: '2 horas antes' },
+];
+
 function iguais(a: Terminologia, b: Terminologia): boolean {
     return CONCEITOS.every(({ chave }) => {
         const x = a[chave];
@@ -34,6 +39,8 @@ export default function ConfiguracaoEmpresa() {
     const [terminologia, setTerminologia] = useState<Terminologia | null>(null);
     const [personalizar, setPersonalizar] = useState(false);
     const [enviarEmails, setEnviarEmails] = useState(false);
+    const [lembretes, setLembretes] = useState<number[]>([]);
+    const [resumoDiario, setResumoDiario] = useState(false);
     const [carregando, setCarregando] = useState(true);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState('');
@@ -51,6 +58,8 @@ export default function ConfiguracaoEmpresa() {
                 setTerminologia(cfg.terminologia);
                 setPersonalizar(cfg.personalizada);
                 setEnviarEmails(cfg.enviarEmails);
+                setLembretes(cfg.lembretesHoras ?? []);
+                setResumoDiario(cfg.resumoDiario ?? false);
             } catch (e) {
                 if (vivo) setErro(mensagemErroHttp(e));
             } finally {
@@ -97,11 +106,15 @@ export default function ConfiguracaoEmpresa() {
                 fusoHorario: fuso,
                 terminologia: usarPersonalizada ? terminologia : null,
                 enviarEmails,
+                lembretesHoras: lembretes,
+                resumoDiario,
             });
             aplicar(cfg);
             setTerminologia(cfg.terminologia);
             setPersonalizar(cfg.personalizada);
             setEnviarEmails(cfg.enviarEmails);
+            setLembretes(cfg.lembretesHoras ?? []);
+            setResumoDiario(cfg.resumoDiario ?? false);
             setSalvoEm(new Date());
         } catch (e) {
             setErro(mensagemErroHttp(e));
@@ -244,6 +257,57 @@ export default function ConfiguracaoEmpresa() {
                                 disabled={salvando}
                                 onChange={(v) => {
                                     setEnviarEmails(v);
+                                    setSalvoEm(null);
+                                }}
+                            />
+                            {enviarEmails && (
+                                <div className="mt-3 flex flex-wrap items-center gap-2 px-4">
+                                    <span className="text-sm" style={{ color: 'var(--ink)' }}>
+                                        Lembrete:
+                                    </span>
+                                    {LEMBRETES.map(({ horas, nome }) => {
+                                        const ligado = lembretes.includes(horas);
+                                        return (
+                                            <button
+                                                key={horas}
+                                                type="button"
+                                                aria-pressed={ligado}
+                                                disabled={salvando}
+                                                onClick={() => {
+                                                    setLembretes((atual) =>
+                                                        ligado ? atual.filter((h) => h !== horas) : [...atual, horas]
+                                                    );
+                                                    setSalvoEm(null);
+                                                }}
+                                                className="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+                                                style={
+                                                    ligado
+                                                        ? { borderColor: 'var(--copper)', background: 'var(--copper)', color: '#fff' }
+                                                        : { borderColor: 'var(--line)', background: 'transparent', color: 'var(--muted-foreground)' }
+                                                }
+                                            >
+                                                {ligado ? '✓ ' : ''}
+                                                {nome}
+                                            </button>
+                                        );
+                                    })}
+                                    <span className="w-full text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                        {lembretes.length === 0
+                                            ? 'Sem lembrete antes do horário.'
+                                            : 'Sai só para quem ainda tem o horário de pé. Quem marcou em cima da hora não recebe lembrete repetido.'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="border-t pt-4" style={{ borderColor: 'var(--line)' }}>
+                            <Switch
+                                label={`Resumo do dia para ${t.recurso.plural.toLocaleLowerCase('pt-BR')}`}
+                                descricao={`Às 7h, cada ${t.recurso.singular.toLocaleLowerCase('pt-BR')} com ${t.agendamento.plural.toLocaleLowerCase('pt-BR')} no dia recebe a lista por e-mail, com um botão para abrir a agenda. Vale o e-mail de login da pessoa no cadastro.`}
+                                checked={resumoDiario}
+                                disabled={salvando}
+                                onChange={(v) => {
+                                    setResumoDiario(v);
                                     setSalvoEm(null);
                                 }}
                             />
