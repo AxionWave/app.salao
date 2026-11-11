@@ -26,6 +26,7 @@ import {
     profissionaisNaGrade,
     varianteStatus,
 } from '@/lib/agenda';
+import { useAgendaAoVivo } from '@/lib/aoVivo';
 import { hojeNaEmpresa, instante, relogio } from '@/lib/fuso';
 import {
     MODULO_AGENDA,
@@ -109,13 +110,13 @@ export default function InicioPage() {
         return { de, ate };
     }, [visaoCal, diasMes, diasSemana, hoje, diaAberto]);
 
-    const carregar = useCallback(async () => {
+    const carregar = useCallback(async (silencioso = false) => {
         if (!temAgenda) {
             setCarregando(false);
             return;
         }
         const pedido = ++pedidoAtual.current;
-        setCarregando(true);
+        if (!silencioso) setCarregando(true);
         setErro('');
         try {
             const [ops, lista, blq] = await Promise.all([
@@ -152,6 +153,8 @@ export default function InicioPage() {
     useEffect(() => {
         void carregar();
     }, [carregar]);
+
+    useAgendaAoVivo(() => void carregar(true));
 
     const profissionaisVisiveis = useMemo(() => {
         const lista = profissionaisNaGrade(opcoes.profissionais, itens);

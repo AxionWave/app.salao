@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { authService, type StoredUserInfo } from '@core/services';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import SinoPainel from './SinoPainel';
 import { Button } from '@/components/ui';
 import type { ReactNode } from 'react';
 
@@ -44,6 +45,7 @@ export default function GlobalHeader({
 
             <div className="flex shrink-0 items-center gap-2 md:gap-3">
                 {acoes}
+                <SinoPainel />
                 <ThemeToggle />
 
                 <div

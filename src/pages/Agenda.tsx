@@ -30,6 +30,7 @@ import {
     transicoesDe,
     varianteStatus,
 } from '@/lib/agenda';
+import { useAgendaAoVivo } from '@/lib/aoVivo';
 import { fusoAtual, hojeNaEmpresa, instante, navegadorEmOutroFuso, relogio } from '@/lib/fuso';
 import { formatarTelefoneExibicao } from '@/lib/telefone';
 import { MODULO_CLIENTES, MODULO_PROFISSIONAIS, MODULO_SERVICOS } from '@/constants/moduleCodes';
@@ -153,8 +154,8 @@ export default function AgendaPage() {
         return Array.from({ length: 7 }, (_, i) => adicionarDias(ini, i));
     }, [cursor]);
 
-    const carregar = useCallback(async () => {
-        setCarregando(true);
+    const carregar = useCallback(async (silencioso = false) => {
+        if (!silencioso) setCarregando(true);
         setErroLista('');
         try {
             const [ops, lista, blq] = await Promise.all([
@@ -190,6 +191,8 @@ export default function AgendaPage() {
     useEffect(() => {
         void carregar();
     }, [carregar]);
+
+    useAgendaAoVivo(() => void carregar(true));
 
     const diaDoForm = form.inicio.slice(0, 10);
     const servicoIdsChave = form.servicoIds.join(',');
