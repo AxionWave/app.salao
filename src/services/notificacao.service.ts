@@ -2,7 +2,7 @@ import axios from 'axios';
 import { lyraClient } from '@core/services';
 import { API_CONFIG } from '@core/config';
 
-export type StatusNotificacao = 'pendente' | 'enviado' | 'falhou';
+export type StatusNotificacao = 'pendente' | 'enviado' | 'entregue' | 'falhou';
 
 export interface Notificacao {
     id: number;

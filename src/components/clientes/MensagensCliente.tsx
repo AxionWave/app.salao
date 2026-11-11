@@ -4,8 +4,9 @@ import { mensagemErroHttp, tituloDeMensagem } from '@/exceptions';
 import { fusoAtual } from '@/lib/fuso';
 import { CANAIS, EVENTOS, notificacaoService, type Notificacao } from '@/services/notificacao.service';
 
-const STATUS: Record<Notificacao['status'], { rotulo: string; variant: 'ok' | 'warn' | 'danger' }> = {
-    enviado: { rotulo: 'Enviado', variant: 'ok' },
+const STATUS: Record<Notificacao['status'], { rotulo: string; variant: 'ok' | 'copper' | 'warn' | 'danger' }> = {
+    entregue: { rotulo: 'Entregue', variant: 'ok' },
+    enviado: { rotulo: 'Enviado', variant: 'copper' },
     pendente: { rotulo: 'Na fila', variant: 'warn' },
     falhou: { rotulo: 'Falhou', variant: 'danger' },
 };
@@ -80,7 +81,7 @@ export default function MensagensCliente({ clienteId }: { clienteId: number }) {
                         </div>
                         <p className="mt-1 text-xs tabular-nums" style={{ color: 'var(--muted-foreground)' }}>
                             {n.dataEnvio ? `Enviado em ${quando(n.dataEnvio)}` : `Criado em ${quando(n.dataCriacao)}`}
-                            {n.status !== 'enviado' && n.tentativas > 0
+                            {(n.status === 'pendente' || n.status === 'falhou') && n.tentativas > 0
                                 ? ` · ${n.tentativas} ${n.tentativas === 1 ? 'tentativa' : 'tentativas'}`
                                 : ''}
                         </p>
