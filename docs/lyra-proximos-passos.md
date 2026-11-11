@@ -70,8 +70,8 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
                                     Worker em segundo plano (HostedService)
                                     ├── Painel ao vivo ...... SignalR (WebSocket)
                                     ├── Celular/navegador ... Web Push (PWA)
-                                    ├── E-mail .............. Resend
-                                    └── WhatsApp ............ WhatsApp Cloud API (Meta)
+                                    ├── E-mail .............. AW.Mensageria ──▶ Resend
+                                    └── WhatsApp ............ AW.Mensageria ──▶ WhatsApp Cloud API (Meta)
                                                   │
                          Respostas (botões, links) ──▶ webhook ──▶ atualiza o status
                                                                    └──▶ SignalR avisa a equipe
@@ -82,6 +82,7 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
 - **Com o app fechado:** o front vira PWA ("instalar no celular") e usa Web Push. O profissional recebe a notificação no celular sem precisar de app na loja.
 - **Lembretes agendados:** Hangfire (com Postgres) ou Quartz. Ao criar ou remarcar, agenda os lembretes; ao cancelar, remove. Precisa respeitar o fuso da empresa.
 - **WhatsApp:** a Cloud API oficial da Meta. Mensagens iniciadas pela empresa exigem **modelos aprovados** pela Meta (confirmação, lembrete, cancelamento), e cada conversa tem custo. Os botões **Confirmo** / **Remarcar** voltam pelo webhook. Evitar APIs não oficiais: o número pode ser banido.
+- **Entrega compartilhada (AW.Mensageria):** o Lyra decide o quê e quando avisar e monta a mensagem; a entrega é de um serviço comum a todos os sistemas da Lumen (repositório `AxionWave/AW.Mensageria`, sistema `MSG`). Ele fala com os provedores, guarda o histórico, tenta de novo quando falha e mantém a lista de quem pediu para não receber. O WhatsApp entra lá, porque a conta da Meta tem um número, um webhook e um conjunto de modelos para todos os sistemas.
 - **E-mail:** Resend, com domínio próprio (`lyra.lumensoft.com.br`) e SPF/DKIM configurados para não cair no spam. O e-mail leva um anexo `.ics` para o cliente pôr na agenda do celular.
 - **Links de confirmação:** um token assinado e de uso único por agendamento (`/c/{token}`), que funciona sem login.
 
@@ -103,10 +104,11 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
    - Canais implementam `ICanalNotificacao`. Só entra na fila o canal que está em `Notificacoes:Canais` **e** tem implementação registrada. Nesta entrega nenhum canal real existe, então nada é enfileirado em produção; o e-mail (entrega 3) é o primeiro.
 2. [ ] SignalR: grade e Início ao vivo e o sino de notificações no painel.
 3. [x] E-mail: confirmação, remarcação, cancelamento, com `.ics` e link de confirmar.
-   - Resend com o domínio `lyra.lumensoft.com.br` (SPF, DKIM e DMARC na Hostinger, região São Paulo, sem rastreio de abertura e clique). Remetente `naoresponda@`, com o nome da empresa como nome de exibição e `reply_to` para o e-mail dela. Chave em `RESEND_API_KEY` (secret do repositório da API); sem chave o canal nem é registrado.
+   - Resend com o domínio `lyra.lumensoft.com.br` (SPF, DKIM e DMARC na Hostinger, região São Paulo, sem rastreio de abertura e clique). Remetente `naoresponda@`, com o nome da empresa como nome de exibição e `reply_to` para o e-mail dela.
+   - Desde a AW.Mensageria, o `CanalEmail` monta o e-mail e pede o envio em `POST http://mensageria:8080/api/mensageria/envios` (token interno, `X-Origin-System: LYR`, chave `lyra-notificacao-{id}`). A chave do Resend (`RESEND_API_KEY`) e o remetente do Lyra ficam na Mensageria; na api.salao, sem `GATEWAY_INTERNAL_TOKEN` o canal nem é registrado. "Enviado" na ficha do cliente quer dizer que a Mensageria aceitou; destino descadastrado vira "falhou" com o motivo.
    - Por empresa: `enviar_emails` em `lyra.empresa_config`, desligado por padrão, chave em Configurações. Os dados da empresa (nome, e-mail, telefone, endereço) são lidos de `core.empresas`.
    - Eventos: criado, remarcado, cancelado e confirmado (este só quando a equipe confirma; quando o próprio cliente confirma pelo link, a tela já mostra o resultado). O `.ics` usa o mesmo UID ao longo das remarcações e `METHOD:CANCEL` no cancelamento, então o celular atualiza o evento em vez de duplicar.
-   - Envio com `Idempotency-Key` por notificação; erro 4xx do Resend (fora 408, 409 e 429) falha na hora, sem novas tentativas.
+   - Sem envio em dobro: a mesma chave na Mensageria devolve o envio já criado, e a Mensageria manda ao Resend com `Idempotency-Key`. Pedido recusado (4xx, fora 408 e 429) falha na hora, sem novas tentativas.
    - Link `/c/{token}`: token assinado (HMAC) com o id do agendamento, sem login, via `GET /api/salao/publico/agendamentos/{token}` e `POST .../confirmar`. Só confirma agendamento futuro e ainda "agendado". O Gateway tem a rota `salao-public` sem o filtro de JWT.
    - Aba **Mensagens** na ficha do cliente com o histórico de envios.
    - Visual: logo da empresa (ou iniciais), selo e cor por evento, bloco de data com início, fim e duração, serviços com duração e valor e o total (sem valores no cancelamento), horário anterior riscado na remarcação, botões Google Agenda, Como chegar e WhatsApp (só celular). A versão em texto puro leva as mesmas informações. Os itens (nome, duração e preço) passaram a ser gravados em `dados` da notificação; notificações antigas saem só com os nomes.
