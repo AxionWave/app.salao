@@ -6,6 +6,7 @@ import AppSidebar from './AppSidebar';
 import GlobalHeader from './GlobalHeader';
 import { Button } from '@/components/ui';
 import { useConfiguracaoEmpresa, useTermos } from '@/contexts/TermosContext';
+import { desligarPush } from '@/lib/push';
 
 export default function PageLayout({
     children,
@@ -25,7 +26,9 @@ export default function PageLayout({
     const { limpar: limparTermos } = useConfiguracaoEmpresa();
     const userInfo = authService.getStoredUserInfo();
 
-    const onLogout = () => {
+    const onLogout = async () => {
+        // O aparelho deixa de receber os avisos de quem saiu (a remoção na API usa o token, que ainda existe aqui).
+        await Promise.race([desligarPush(), new Promise((r) => setTimeout(r, 2000))]);
         authService.logout();
         limparTermos();
         navigate('/login', { replace: true });
@@ -63,7 +66,7 @@ export default function PageLayout({
         <div className="flex min-h-[100dvh] flex-col" style={{ background: 'var(--background)', color: 'var(--ink)' }}>
             <AppSidebar />
             <main className="ml-0 flex min-h-[100dvh] flex-1 flex-col md:ml-72">
-                <GlobalHeader titulo={titulo} subtitulo={subtitulo} userInfo={userInfo} onLogout={onLogout} acoes={acoes} />
+                <GlobalHeader titulo={titulo} subtitulo={subtitulo} userInfo={userInfo} onLogout={() => void onLogout()} acoes={acoes} />
                 <nav
                     className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden"
                     style={{ borderColor: 'var(--line)', background: 'var(--card)' }}

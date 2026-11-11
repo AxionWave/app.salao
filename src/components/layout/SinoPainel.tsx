@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '@core/services';
 import { useTermos, type Termos } from '@/contexts/TermosContext';
 import { podeOuvirAoVivo, useAoVivo } from '@/lib/aoVivo';
+import { sincronizarPush } from '@/lib/push';
+import AvisosNoAparelho from './AvisosNoAparelho';
 import { painelService, type AvisoPainel } from '@/services/painel.service';
 import type { Termo } from '@/services/configuracao.service';
 
@@ -71,7 +73,9 @@ export default function SinoPainel() {
     }, []);
 
     useEffect(() => {
-        if (podeOuvirAoVivo()) carregar();
+        if (!podeOuvirAoVivo()) return;
+        carregar();
+        void sincronizarPush();
     }, [carregar]);
 
     useAoVivo<AvisoPainel>(
@@ -200,6 +204,7 @@ export default function SinoPainel() {
                             ))}
                         </ul>
                     )}
+                    <AvisosNoAparelho />
                 </div>
             )}
         </div>
