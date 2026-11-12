@@ -14,6 +14,8 @@ export interface PortalConfig {
     passoMinutos: number;
     servicosOcultos: number[];
     profissionaisOcultos: number[];
+    /** Até quantas horas antes o cliente cancela ou remarca pelo site; null = só falando com a empresa. */
+    prazoAlteracaoHoras: number | null;
 }
 
 export interface ItemPortal {
@@ -45,6 +47,7 @@ export interface PaginaPortal {
     janelaDias: number;
     servicos: { id: number; nome: string; duracaoMinutos: number; preco: number; profissionalIds: number[] }[];
     profissionais: { id: number; nome: string; cor: string }[];
+    prazoAlteracaoHoras: number | null;
 }
 
 export interface HorariosPortal {
@@ -74,6 +77,28 @@ export interface AgendamentoPortal {
     fim: string;
     preco: number;
     status: string;
+}
+
+export interface AgendamentoCliente {
+    id: number;
+    /** Primeiro agendamento da cadeia de remarcações: o UID do evento no calendário. */
+    cadeia: number;
+    inicio: string;
+    fim: string;
+    status: string;
+    profissionalId: number;
+    profissional: string;
+    servicos: ItemPortal[];
+    preco: number;
+    motivoCancelamento: string | null;
+    podeAlterar: boolean;
+    /** Até quando dá para cancelar ou remarcar pelo site; null quando a empresa não deixa. */
+    alterarAte: string | null;
+}
+
+export interface MeusAgendamentos {
+    proximos: AgendamentoCliente[];
+    historico: AgendamentoCliente[];
 }
 
 /** A conta vale em qualquer empresa: uma sessão só, separada da sessão da equipe. */
@@ -146,6 +171,31 @@ export const portalService = {
         body: { servicoIds: number[]; profissionalId: number | null; inicio: string; observacoes: string | null },
     ): Promise<AgendamentoPortal> {
         const { data } = await publico.post<AgendamentoPortal>(rota(endereco, '/agendamentos'), body);
+        return data;
+    },
+
+    async meusAgendamentos(endereco: string): Promise<MeusAgendamentos> {
+        const { data } = await publico.get<MeusAgendamentos>(rota(endereco, '/meus-agendamentos'));
+        return data;
+    },
+
+    async horariosRemarcar(endereco: string, id: number, dia: string, profissionalId: number | null): Promise<HorariosPortal> {
+        const params = new URLSearchParams({ data: dia });
+        if (profissionalId) params.set('profissionalId', String(profissionalId));
+        const { data } = await publico.get<HorariosPortal>(rota(endereco, `/meus-agendamentos/${id}/horarios?${params}`));
+        return data;
+    },
+
+    async cancelar(endereco: string, id: number, motivo: string | null): Promise<AgendamentoCliente> {
+        const { data } = await publico.post<AgendamentoCliente>(rota(endereco, `/meus-agendamentos/${id}/cancelar`), { motivo });
+        return data;
+    },
+
+    async remarcar(endereco: string, id: number, profissionalId: number | null, inicio: string): Promise<AgendamentoCliente> {
+        const { data } = await publico.post<AgendamentoCliente>(rota(endereco, `/meus-agendamentos/${id}/remarcar`), {
+            profissionalId,
+            inicio,
+        });
         return data;
     },
 

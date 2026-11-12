@@ -1,6 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import MeusHorarios from '@/components/portal/MeusHorarios';
+import {
+    AdicionarAgenda,
+    brl,
+    Cartao,
+    GradeHorarios,
+    hojeNoFuso,
+    juntarHorarios,
+    Opcao,
+    quando,
+    SeletorDia,
+    somarDias,
+    Titulo,
+    type Horario,
+} from '@/components/portal/PortalUi';
 import { Alert, Button, Input, PhoneInput, Textarea } from '@/components/ui';
 import { mensagemErroHttp } from '@/exceptions';
 import { formatarDuracaoMinutos } from '@/lib/agenda';
@@ -10,139 +25,20 @@ import {
     portalService,
     salvarSessao,
     sessaoSalva,
+    type AgendamentoCliente,
     type AgendamentoPortal,
     type HorariosPortal,
     type PaginaPortal,
     type SessaoCliente,
 } from '@/services/portal.service';
 
-const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const DIAS_VISIVEIS = 60;
 const ESPERA_REENVIO = 30;
 
-type Passo = 'servicos' | 'profissional' | 'horario' | 'email' | 'codigo' | 'cadastro' | 'confirmar' | 'feito';
-
-interface Horario {
-    inicio: string;
-    hora: string;
-}
+type Passo = 'servicos' | 'profissional' | 'horario' | 'email' | 'codigo' | 'cadastro' | 'confirmar' | 'feito' | 'meus';
 
 const minusculo = (t: Termo, plural = false) => (plural ? t.plural : t.singular).toLocaleLowerCase('pt-BR');
 const artigo = (t: Termo) => (t.genero === 'f' ? 'a' : 'o');
-
-function hojeNoFuso(fuso: string): string {
-    try {
-        return new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-            new Date(),
-        );
-    } catch {
-        return new Date().toISOString().slice(0, 10);
-    }
-}
-
-function somarDias(dia: string, n: number): string {
-    const d = new Date(`${dia}T12:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + n);
-    return d.toISOString().slice(0, 10);
-}
-
-function rotuloDia(dia: string) {
-    const d = new Date(`${dia}T12:00:00Z`);
-    return {
-        semana: new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: 'UTC' }).format(d).replace('.', ''),
-        numero: d.getUTCDate(),
-        mes: new Intl.DateTimeFormat('pt-BR', { month: 'short', timeZone: 'UTC' }).format(d).replace('.', ''),
-    };
-}
-
-function quando(iso: string, fuso: string): string {
-    const opcoes: Intl.DateTimeFormatOptions = {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-    };
-    try {
-        return new Intl.DateTimeFormat('pt-BR', { ...opcoes, timeZone: fuso }).format(new Date(iso));
-    } catch {
-        return new Intl.DateTimeFormat('pt-BR', opcoes).format(new Date(iso));
-    }
-}
-
-function Cartao({ children }: { children: ReactNode }) {
-    return (
-        <div className="rounded-lyra border p-5 sm:p-6" style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}>
-            {children}
-        </div>
-    );
-}
-
-function Titulo({ children, voltar }: { children: ReactNode; voltar?: () => void }) {
-    return (
-        <div className="mb-4 flex items-center gap-2">
-            {voltar && (
-                <button
-                    type="button"
-                    onClick={voltar}
-                    aria-label="Voltar"
-                    className="-ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                    style={{ color: 'var(--muted-foreground)' }}
-                >
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden>
-                        <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                    </svg>
-                </button>
-            )}
-            <h2 className="font-display text-lg font-semibold" style={{ color: 'var(--ink)' }}>
-                {children}
-            </h2>
-        </div>
-    );
-}
-
-function Opcao({
-    selecionado,
-    onClick,
-    titulo,
-    detalhe,
-    lateral,
-}: {
-    selecionado: boolean;
-    onClick: () => void;
-    titulo: string;
-    detalhe?: string;
-    lateral?: string;
-}) {
-    return (
-        <button
-            type="button"
-            aria-pressed={selecionado}
-            onClick={onClick}
-            className="flex w-full items-center justify-between gap-3 rounded-lyra border px-4 py-3 text-left transition-colors"
-            style={{
-                borderColor: selecionado ? 'var(--copper)' : 'var(--line)',
-                background: selecionado ? 'color-mix(in oklab, var(--copper) 10%, var(--panel))' : 'var(--card)',
-            }}
-        >
-            <span className="min-w-0">
-                <span className="block text-sm font-medium" style={{ color: 'var(--ink)' }}>
-                    {titulo}
-                </span>
-                {detalhe && (
-                    <span className="mt-0.5 block text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        {detalhe}
-                    </span>
-                )}
-            </span>
-            {lateral && (
-                <span className="shrink-0 text-sm tabular-nums" style={{ color: 'var(--ink)' }}>
-                    {lateral}
-                </span>
-            )}
-        </button>
-    );
-}
 
 /** Página pública da empresa (lyra.lumensoft.com.br/{endereco}): o cliente escolhe e marca o horário. */
 export default function PortalPage() {
@@ -169,7 +65,13 @@ export default function PortalPage() {
     const [telefone, setTelefone] = useState('');
     const [observacoes, setObservacoes] = useState('');
     const [feito, setFeito] = useState<AgendamentoPortal | null>(null);
+    /** Para onde o login leva: terminar o agendamento ou abrir "Meus horários". */
+    const [destino, setDestino] = useState<'agendar' | 'meus'>('agendar');
     const topo = useRef<HTMLDivElement>(null);
+    const passoAtual = useRef(passo);
+    useEffect(() => {
+        passoAtual.current = passo;
+    }, [passo]);
 
     useEffect(() => {
         let vivo = true;
@@ -185,6 +87,29 @@ export default function PortalPage() {
                 if (!vivo) return;
                 if (axios.isAxiosError(e) && e.response?.status === 404) setNaoExiste(true);
                 else setErroPagina(mensagemErroHttp(e));
+            });
+        return () => {
+            vivo = false;
+        };
+    }, [endereco]);
+
+    useEffect(() => {
+        const salva = sessaoSalva();
+        if (!salva) return;
+        let vivo = true;
+        portalService
+            .conta(endereco)
+            .then((conta) => {
+                if (!vivo) return;
+                const s = { ...salva, conta };
+                salvarSessao(s);
+                setSessao(s);
+            })
+            .catch((e) => {
+                if (vivo && axios.isAxiosError(e) && e.response?.status === 401) {
+                    salvarSessao(null);
+                    setSessao(null);
+                }
             });
         return () => {
             vivo = false;
@@ -244,24 +169,21 @@ export default function PortalPage() {
         if (passo === 'horario') void carregarHorarios();
     }, [passo, carregarHorarios]);
 
-    const livres: Horario[] = useMemo(() => {
-        if (!horarios) return [];
-        const porInicio = new Map<string, Horario>();
-        horarios.profissionais
-            .filter((p) => profissionalId === null || p.profissionalId === profissionalId)
-            .flatMap((p) => p.horarios)
-            .forEach((h) => porInicio.set(h.inicio, h));
-        return [...porInicio.values()].sort((a, b) => a.inicio.localeCompare(b.inicio));
-    }, [horarios, profissionalId]);
+    const livres: Horario[] = useMemo(
+        () => juntarHorarios(horarios?.profissionais ?? [], profissionalId),
+        [horarios, profissionalId],
+    );
 
     const sair = () => {
         salvarSessao(null);
         setSessao(null);
+        if (passo === 'meus') setPasso('servicos');
     };
 
     /** Depois do horário: entra se precisar, completa o cadastro se faltar, e confirma. */
     const seguirComSessao = (s: SessaoCliente | null) => {
         if (!s) {
+            setDestino('agendar');
             irPara('email');
             return;
         }
@@ -274,14 +196,45 @@ export default function PortalPage() {
         irPara('confirmar');
     };
 
-    const sessaoCaiu = (e: unknown) => {
-        if (axios.isAxiosError(e) && e.response?.status === 401) {
-            sair();
-            setPasso('email');
-            setErro('Sua sessão expirou. Entre de novo com o código.');
-            return true;
+    const sessaoCaiu = useCallback(
+        (e: unknown) => {
+            if (axios.isAxiosError(e) && e.response?.status === 401) {
+                salvarSessao(null);
+                setSessao(null);
+                if (passoAtual.current === 'meus') setDestino('meus');
+                setPasso('email');
+                setErro('Sua sessão expirou. Entre de novo com o código.');
+                return true;
+            }
+            return false;
+        },
+        [],
+    );
+
+    const abrirMeus = () => {
+        if (sessao) {
+            irPara('meus');
+        } else {
+            setDestino('meus');
+            irPara('email');
         }
-        return false;
+    };
+
+    /** Mesmos serviços e profissional, se ainda estiverem na página; segue para escolher o dia. */
+    const marcarDeNovo = (a: AgendamentoCliente) => {
+        if (!pagina) return;
+        const ids = a.servicos.map((s) => s.id).filter((id) => pagina.servicos.some((s) => s.id === id));
+        if (ids.length === 0) {
+            irPara('servicos');
+            setErro('Este serviço não está mais disponível online. Escolha outro.');
+            return;
+        }
+        const faz = (pid: number) => ids.every((id) => pagina.servicos.find((s) => s.id === id)?.profissionalIds.includes(pid));
+        setServicoIds(ids);
+        setProfissionalId(pagina.profissionais.some((p) => p.id === a.profissionalId) && faz(a.profissionalId) ? a.profissionalId : null);
+        setHorario(null);
+        setDia(hojeNoFuso(pagina.fusoHorario));
+        irPara('horario');
     };
 
     const pedirCodigo = async () => {
@@ -306,7 +259,8 @@ export default function PortalPage() {
             const s = await portalService.entrar(endereco, email.trim(), codigo);
             salvarSessao(s);
             setSessao(s);
-            seguirComSessao(s);
+            if (destino === 'meus') irPara('meus');
+            else seguirComSessao(s);
         } catch (e) {
             setErro(mensagemErroHttp(e));
         } finally {
@@ -461,16 +415,39 @@ export default function PortalPage() {
                     </div>
                 </header>
 
-                {sessao && passo !== 'email' && passo !== 'codigo' && (
-                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                        Entrou como {sessao.conta.email} ·{' '}
-                        <button type="button" className="underline" onClick={sair}>
-                            sair
-                        </button>
+                {passo !== 'email' && passo !== 'codigo' && (
+                    <p className="flex flex-wrap gap-x-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        {sessao && <span>Entrou como {sessao.conta.email}</span>}
+                        {passo !== 'meus' && (
+                            <button type="button" className="font-medium underline" style={{ color: 'var(--copper)' }} onClick={abrirMeus}>
+                                {sessao ? 'Meus horários' : 'Já marcou? Ver meus horários'}
+                            </button>
+                        )}
+                        {sessao && (
+                            <button type="button" className="underline" onClick={sair}>
+                                sair
+                            </button>
+                        )}
                     </p>
                 )}
 
-                {erro && <Alert titulo="Atenção">{erro}</Alert>}
+                {erro && passo !== 'meus' && <Alert titulo="Atenção">{erro}</Alert>}
+
+                {passo === 'meus' && sessao && (
+                    <MeusHorarios
+                        endereco={endereco}
+                        pagina={pagina}
+                        conta={sessao.conta}
+                        voltar={() => irPara('servicos')}
+                        sessaoCaiu={sessaoCaiu}
+                        onConta={(conta) => {
+                            const s = { ...sessao, conta };
+                            salvarSessao(s);
+                            setSessao(s);
+                        }}
+                        marcarDeNovo={marcarDeNovo}
+                    />
+                )}
 
                 {passo === 'servicos' && (
                     <Cartao>
@@ -556,72 +533,21 @@ export default function PortalPage() {
                 {passo === 'horario' && (
                     <Cartao>
                         <Titulo voltar={() => irPara(aptos.length > 1 ? 'profissional' : 'servicos')}>Dia e horário</Titulo>
-                        <div
-                            className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-2"
-                            style={{ scrollbarWidth: 'thin' }}
-                            role="listbox"
-                            aria-label="Dia"
-                        >
-                            {dias.map((d) => {
-                                const r = rotuloDia(d);
-                                const ativo = d === dia;
-                                return (
-                                    <button
-                                        key={d}
-                                        type="button"
-                                        role="option"
-                                        aria-selected={ativo}
-                                        onClick={() => {
-                                            setDia(d);
-                                            setHorario(null);
-                                            setErro('');
-                                        }}
-                                        className="flex w-14 shrink-0 flex-col items-center rounded-lyra border py-2"
-                                        style={{
-                                            borderColor: ativo ? 'var(--copper)' : 'var(--line)',
-                                            background: ativo ? 'var(--copper)' : 'var(--card)',
-                                            color: ativo ? '#fff' : 'var(--ink)',
-                                        }}
-                                    >
-                                        <span className="text-[11px] uppercase">{r.semana}</span>
-                                        <span className="text-lg font-semibold leading-tight">{r.numero}</span>
-                                        <span className="text-[11px]">{r.mes}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {carregandoHorarios || (carregados !== chaveHorarios && !erro) ? (
-                            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                Buscando horários…
-                            </p>
-                        ) : livres.length === 0 ? (
-                            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                                Sem horários livres neste dia. Tente outro.
-                            </p>
-                        ) : (
-                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                                {livres.map((h) => {
-                                    const ativo = horario?.inicio === h.inicio;
-                                    return (
-                                        <button
-                                            key={h.inicio}
-                                            type="button"
-                                            aria-pressed={ativo}
-                                            onClick={() => setHorario(h)}
-                                            className="rounded-lyra border py-2 text-sm font-medium tabular-nums"
-                                            style={{
-                                                borderColor: ativo ? 'var(--copper)' : 'var(--line)',
-                                                background: ativo ? 'var(--copper)' : 'var(--card)',
-                                                color: ativo ? '#fff' : 'var(--ink)',
-                                            }}
-                                        >
-                                            {h.hora}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <SeletorDia
+                            dias={dias}
+                            dia={dia}
+                            onChange={(d) => {
+                                setDia(d);
+                                setHorario(null);
+                                setErro('');
+                            }}
+                        />
+                        <GradeHorarios
+                            carregando={carregandoHorarios || (carregados !== chaveHorarios && !erro)}
+                            livres={livres}
+                            selecionado={horario}
+                            onSelect={setHorario}
+                        />
 
                         <Button className="mt-4" fullWidth disabled={!horario} onClick={() => seguirComSessao(sessao)}>
                             Continuar
@@ -631,7 +557,7 @@ export default function PortalPage() {
 
                 {passo === 'email' && (
                     <Cartao>
-                        <Titulo voltar={() => irPara('horario')}>Seu e-mail</Titulo>
+                        <Titulo voltar={() => irPara(destino === 'meus' ? 'servicos' : 'horario')}>Seu e-mail</Titulo>
                         <form
                             className="flex flex-col gap-4"
                             onSubmit={(e) => {
@@ -640,6 +566,7 @@ export default function PortalPage() {
                             }}
                         >
                             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                                {destino === 'meus' ? 'Use o e-mail com que você marcou. ' : ''}
                                 Vamos mandar um código de 6 números para confirmar que é você. Sem senha.
                             </p>
                             <Input
@@ -786,14 +713,31 @@ export default function PortalPage() {
                                     </>
                                 )}
                             </dl>
+                            <AdicionarAgenda
+                                evento={{
+                                    cadeia: feito.id,
+                                    inicio: feito.inicio,
+                                    fim: feito.fim,
+                                    servicos: feito.servicos,
+                                    profissional: feito.profissional,
+                                }}
+                                empresa={pagina.empresa.nome}
+                                local={pagina.empresa.endereco}
+                            />
                             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                                 {sessao?.conta.email ? `Se a empresa enviar avisos por e-mail, eles chegam em ${sessao.conta.email}. ` : ''}
-                                Para remarcar ou cancelar, fale com {pagina.empresa.nome}
-                                {pagina.empresa.telefone ? ` pelo ${pagina.empresa.telefone}` : ''}.
+                                {pagina.prazoAlteracaoHoras !== null
+                                    ? 'Para remarcar ou cancelar, use "Meus horários".'
+                                    : `Para remarcar ou cancelar, fale com ${pagina.empresa.nome}${pagina.empresa.telefone ? ` pelo ${pagina.empresa.telefone}` : ''}.`}
                             </p>
-                            <Button variant="secondary" onClick={recomecar}>
-                                Marcar outro horário
-                            </Button>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Button variant="secondary" className="flex-1" onClick={abrirMeus}>
+                                    Meus horários
+                                </Button>
+                                <Button variant="secondary" className="flex-1" onClick={recomecar}>
+                                    Marcar outro horário
+                                </Button>
+                            </div>
                         </div>
                     </Cartao>
                 )}

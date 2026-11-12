@@ -147,13 +147,13 @@ O cliente entra, se cadastra e marca sozinho.
 ### Acesso
 - [x] **Endereço por empresa:** `lyra.lumensoft.com.br/{endereco}` (ex.: `/salao-bela`), com logo, apresentação, endereço, telefone, serviços e profissionais. É o link que a empresa põe no Instagram e no Google. Cores próprias por empresa ficaram para depois.
 - [x] **Login sem senha por e-mail:** o cliente informa o e-mail e recebe um código de 6 dígitos. Pelo WhatsApp entra junto com a entrega 4 da Etapa 1.
-- [x] **Conta separada da equipe:** o cliente não é usuário do Core. A conta fica no próprio Lyra (`lyra.contas_cliente`, uma por e-mail), com token próprio e escopo só do portal, e é ligada à ficha pelo e-mail ou pelo telefone. Um cliente nunca chega às rotas da equipe.
+- [x] **Conta separada da equipe:** o cliente não é usuário do Core. A conta fica no próprio Lyra (`lyra.contas_cliente`, uma por e-mail), com token próprio e escopo só do portal, e é ligada à ficha pelo e-mail ou pelo telefone (pelo telefone, sem ganhar acesso ao que já era da ficha: ver Área do cliente). Um cliente nunca chega às rotas da equipe.
 - [x] **Uma conta, várias empresas:** a conta é do e-mail, e em cada empresa ela vira (ou encontra) a ficha daquela empresa; cada empresa vê só a sua.
 - [ ] **Dependentes:** quem entra pelo telefone ou e-mail da família marca para qualquer membro dela (usa o grupo familiar que já existe).
 
 ### Agendamento online
 - [x] Fluxo: serviço (um ou mais) → profissional ou "sem preferência" (pulado quando só um atende) → dia → horário livre → e-mail e código → nome e telefone (só na primeira vez) → confirmar.
-- [x] Regras por empresa: antecedência mínima, janela máxima, limite de agendamentos em aberto por cliente e de quanto em quanto tempo os horários aparecem. O prazo para cancelar ou remarcar sozinho entra com a área do cliente.
+- [x] Regras por empresa: antecedência mínima, janela máxima, limite de agendamentos em aberto por cliente, de quanto em quanto tempo os horários aparecem e até quando o cliente cancela ou remarca sozinho.
 - [x] Escolher quais serviços e profissionais aparecem online.
 - [ ] Agendamento online já entrar confirmado (hoje entra "agendado", a confirmar pela recepção).
 - [x] Proteção: limites de códigos por e-mail e por IP, tentativas por código e a mesma checagem de conflito da agenda (R-17).
@@ -167,9 +167,20 @@ O cliente entra, se cadastra e marca sozinho.
 - **Agendar:** `POST .../agendamentos`. Só aceita horário que está na grade livre naquele momento (o cliente nunca vê o motivo de um bloqueio da equipe; vê "Este horário não está mais livre"). Sem preferência, fica com o profissional livre com menos horários no dia. A ficha é achada pelo e-mail, depois pelo telefone, ou criada ("Cadastro feito pelo agendamento online."); ficha inativa recusa e manda falar com a empresa. Entra como "agendado", com origem cliente: o sino e o push dizem "Novo horário online" e o e-mail de "Horário marcado" sai ao cliente como os outros.
 
 ### Área do cliente
-- [ ] Próximos agendamentos, com botões de cancelar (com motivo, dentro do prazo da empresa), remarcar (usa a mesma rota de remarcação da equipe) e adicionar à agenda.
-- [ ] Histórico, dados pessoais e preferências de notificação.
-- [ ] "Marcar de novo" com o mesmo serviço e profissional.
+- [x] Próximos agendamentos, com botões de cancelar (com motivo, dentro do prazo da empresa), remarcar (usa a mesma remarcação da equipe) e adicionar à agenda.
+- [x] Histórico e dados pessoais (nome e telefone).
+- [ ] Preferências de notificação pelo portal (hoje o cliente sai dos e-mails pelo link de descadastro).
+- [x] "Marcar de novo" com o mesmo serviço e profissional.
+
+### Como ficou (entrega 4: área do cliente)
+- **Onde:** na página da empresa, "Meus horários" (ou "Já marcou? Ver meus horários" sem login, que pede o código e volta para lá). A tela de "Horário marcado!" também leva para lá e já tem "Adicionar à agenda".
+- **O que o cliente vê:** os agendamentos da empresa que a conta marcou (`agendamentos.conta_cliente_id`, herdado na remarcação) e os das fichas com o e-mail da conta, que é verificado pelo código. A ficha achada só pelo telefone **não** ganha mais o e-mail da conta e não entra na área: o telefone não é verificado, e quem digitasse o telefone de outra pessoa veria os horários dela. Os e-mails de um agendamento feito pelo portal vão para o e-mail da conta, não para o da ficha. Horário de outra pessoa dá 404.
+- **Próximos e histórico:** `GET .../meus-agendamentos` devolve os em aberto que ainda não acabaram e os 20 últimos do histórico (atendidos, faltas e cancelados; o cancelado por remarcação some, porque o novo horário já conta a história). Cada item traz `cadeia` (o primeiro da cadeia de remarcações), `podeAlterar` e `alterarAte`.
+- **Prazo:** Configurações → Agendamento online → "Cancelar e remarcar pelo site": não permitir, até a hora do horário, ou até 2, 6, 12, 24 (padrão) ou 48 horas antes (a API aceita de 0 a 168). Fora do prazo, a área mostra o telefone da empresa e a API responde 409 com a mesma orientação.
+- **Cancelar:** `POST .../meus-agendamentos/{id}/cancelar` com motivo opcional (até 200). Usa o mesmo cancelamento da equipe, com origem cliente: o sino e o push dizem "Cliente cancelou" (com o termo da empresa) e o cliente recebe o e-mail de cancelamento com o motivo.
+- **Remarcar:** `GET .../meus-agendamentos/{id}/horarios?data&profissionalId` mostra a grade com os mesmos serviços, sem contar o próprio horário como ocupado (dá para trocar por um vizinho que encosta nele). `POST .../remarcar` com `inicio` e `profissionalId` opcional passa pelas mesmas regras de agendar (antecedência, janela, grade, serviço ainda visível) e usa a remarcação da equipe: o anterior fica cancelado como "Remarcado", o sino diz "Cliente remarcou" e o e-mail de "Horário alterado" mantém o mesmo evento no calendário.
+- **Adicionar à agenda:** link do Google Agenda e arquivo `.ics` gerado no navegador, com o mesmo UID dos convites por e-mail (`lyra-agendamento-{cadeia}@lyra.lumensoft.com.br`), então o calendário atualiza o evento em vez de duplicar.
+- **Marcar de novo:** no histórico, leva direto ao dia e horário com os mesmos serviços e profissional, se ainda estiverem na página.
 
 ---
 

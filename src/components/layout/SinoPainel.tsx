@@ -18,9 +18,13 @@ function titulo(a: AvisoPainel, termos: Termos): string {
         case 'agendamento_criado':
             return a.origem === 'cliente' ? `${termos.novo('agendamento')} online` : termos.novo('agendamento');
         case 'agendamento_remarcado':
-            return `${termo.singular} ${concorda(termo, 'alterado', 'alterada')}`;
+            return a.origem === 'cliente'
+                ? `${termos.cliente.singular} remarcou`
+                : `${termo.singular} ${concorda(termo, 'alterado', 'alterada')}`;
         case 'agendamento_cancelado':
-            return `${termo.singular} ${concorda(termo, 'cancelado', 'cancelada')}`;
+            return a.origem === 'cliente'
+                ? `${termos.cliente.singular} cancelou`
+                : `${termo.singular} ${concorda(termo, 'cancelado', 'cancelada')}`;
         case 'agendamento_confirmado':
             return a.origem === 'cliente'
                 ? `${termos.cliente.singular} confirmou presença`

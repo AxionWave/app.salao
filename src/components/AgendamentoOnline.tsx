@@ -16,6 +16,15 @@ const ANTECEDENCIAS = [
     { valor: 2880, nome: '2 dias antes' },
     { valor: 10080, nome: '7 dias antes' },
 ];
+const PRAZOS = [
+    { valor: '', nome: 'Não permitir (só falando com a empresa)' },
+    { valor: '0', nome: 'Até a hora do horário' },
+    { valor: '2', nome: 'Até 2 horas antes' },
+    { valor: '6', nome: 'Até 6 horas antes' },
+    { valor: '12', nome: 'Até 12 horas antes' },
+    { valor: '24', nome: 'Até 1 dia antes' },
+    { valor: '48', nome: 'Até 2 dias antes' },
+];
 const JANELAS = [7, 14, 30, 60, 90, 180, 365];
 const LIMITES = [1, 2, 3, 4, 5, 10];
 const PASSOS = [10, 15, 20, 30, 60];
@@ -305,6 +314,27 @@ export default function AgendamentoOnline() {
                                     {PASSOS.map((n) => (
                                         <option key={n} value={n}>
                                             {n === 60 ? 'De 1 em 1 hora' : `De ${n} em ${n} minutos`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </Campo>
+                            <Campo label="Cancelar e remarcar pelo site">
+                                <select
+                                    className="lyra-input"
+                                    value={form.prazoAlteracaoHoras === null ? '' : String(form.prazoAlteracaoHoras)}
+                                    disabled={salvando}
+                                    onChange={(e) =>
+                                        mudar({ prazoAlteracaoHoras: e.target.value === '' ? null : Number(e.target.value) })
+                                    }
+                                >
+                                    {!PRAZOS.some((p) => p.valor === String(form.prazoAlteracaoHoras ?? '')) && (
+                                        <option value={String(form.prazoAlteracaoHoras)}>
+                                            Até {form.prazoAlteracaoHoras} horas antes
+                                        </option>
+                                    )}
+                                    {PRAZOS.map((p) => (
+                                        <option key={p.valor} value={p.valor}>
+                                            {p.nome}
                                         </option>
                                     ))}
                                 </select>
