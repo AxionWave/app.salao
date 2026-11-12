@@ -52,10 +52,14 @@ function horaLocal(iso: string, fuso: string): string {
 const minusculo = (t: Termo, plural = false) => (plural ? t.plural : t.singular).toLocaleLowerCase('pt-BR');
 const artigo = (t: Termo) => (t.genero === 'f' ? 'a' : 'o');
 
-/** Troca dos serviços na confirmação: mostra o novo tempo total e até quando o horário fica reservado. */
+/**
+ * Troca dos serviços na confirmação: mostra o novo tempo total e até quando o horário fica reservado.
+ * Os botões só aparecem depois que algo muda (`alterado`).
+ */
 function EditarServicos({
     pagina,
     ids,
+    alterado,
     inicio,
     horaInicio,
     ocupado,
@@ -66,6 +70,7 @@ function EditarServicos({
 }: {
     pagina: PaginaPortal;
     ids: number[];
+    alterado: boolean;
     inicio: string | null;
     horaInicio: string | null;
     ocupado: boolean;
@@ -90,7 +95,7 @@ function EditarServicos({
                     lateral={s.preco > 0 ? brl.format(s.preco) : undefined}
                 />
             ))}
-            {ids.length > 0 && (
+            {alterado && ids.length > 0 && (
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                     Total: {formatarDuracaoMinutos(total)}
                     {preco > 0 ? ` · ${brl.format(preco)}` : ''}
@@ -102,14 +107,16 @@ function EditarServicos({
             {ids.length > 0 && !alguemFaz && (
                 <Alert variant="warn">Nenhum {termoRecurso} faz todos estes juntos. Tire algum.</Alert>
             )}
-            <div className="flex gap-2">
-                <Button size="sm" disabled={ocupado || ids.length === 0 || !alguemFaz} onClick={onAplicar}>
-                    {ocupado ? 'Conferindo horário…' : 'Aplicar'}
-                </Button>
-                <Button size="sm" variant="ghost" disabled={ocupado} onClick={onCancelar}>
-                    Cancelar
-                </Button>
-            </div>
+            {alterado && (
+                <div className="flex gap-2">
+                    <Button size="sm" disabled={ocupado || ids.length === 0 || !alguemFaz} onClick={onAplicar}>
+                        {ocupado ? 'Conferindo horário…' : 'Aplicar'}
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={ocupado} onClick={onCancelar}>
+                        Cancelar
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
@@ -494,7 +501,21 @@ export default function PortalPage() {
     const resumo = (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
             <dt style={{ color: 'var(--muted-foreground)' }}>{escolhidos.length > 1 ? t.servico.plural : t.servico.singular}</dt>
-            <dd style={{ color: 'var(--ink)' }}>{escolhidos.map((s) => s.nome).join(', ')}</dd>
+            <dd style={{ color: 'var(--ink)' }}>
+                <ul className="flex flex-col gap-1">
+                    {escolhidos.map((s) => (
+                        <li key={s.id} className="flex items-baseline justify-between gap-3">
+                            <span className="min-w-0">
+                                {s.nome}
+                                <span style={{ color: 'var(--muted-foreground)' }}> · {formatarDuracaoMinutos(s.duracaoMinutos)}</span>
+                            </span>
+                            {s.preco > 0 && escolhidos.length > 1 && (
+                                <span className="shrink-0 tabular-nums">{brl.format(s.preco)}</span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            </dd>
             <dt style={{ color: 'var(--muted-foreground)' }}>Com</dt>
             <dd style={{ color: 'var(--ink)' }}>{profissional?.nome ?? (aptos.length === 1 ? aptos[0].nome : 'Quem estiver livre')}</dd>
             {horario && (
@@ -512,7 +533,7 @@ export default function PortalPage() {
             </dd>
             {preco > 0 && (
                 <>
-                    <dt style={{ color: 'var(--muted-foreground)' }}>Valor</dt>
+                    <dt style={{ color: 'var(--muted-foreground)' }}>{escolhidos.length > 1 ? 'Total' : 'Valor'}</dt>
                     <dd style={{ color: 'var(--ink)' }}>{brl.format(preco)}</dd>
                 </>
             )}
@@ -524,7 +545,10 @@ export default function PortalPage() {
             className="min-h-[100dvh] px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[calc(1.5rem+var(--lyra-safe-top))]"
             style={fundo}
         >
-            <div ref={topo} className="mx-auto flex w-full max-w-xl scroll-mt-4 flex-col gap-4">
+            <div
+                ref={topo}
+                className={`mx-auto flex w-full max-w-xl scroll-mt-4 flex-col gap-4 ${passo === 'confirmar' ? 'md:max-w-4xl' : ''}`}
+            >
                 <header className="flex items-start gap-4">
                     {pagina.empresa.logoUrl && (
                         <img
@@ -826,64 +850,83 @@ export default function PortalPage() {
                 {passo === 'confirmar' && (
                     <Cartao>
                         <Titulo voltar={() => irPara('horario')}>Confira e confirme</Titulo>
-                        <div className="flex flex-col gap-4">
-                            {familia.length > 0 && (
-                                <div className="flex flex-col gap-2">
-                                    <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
-                                        Para quem é?
-                                    </p>
-                                    <Opcao
-                                        selecionado={paraId === null}
-                                        onClick={() => setParaId(null)}
-                                        titulo={sessao?.conta.nome ?? 'Para mim'}
-                                        detalhe="Você"
-                                    />
-                                    {familia.map((p) => (
-                                        <Opcao
-                                            key={p.id}
-                                            selecionado={paraId === p.id}
-                                            onClick={() => setParaId(p.id)}
-                                            titulo={p.nome}
-                                            detalhe={p.parentesco ?? undefined}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            {resumo}
-                            {rascunho === null ? (
-                                <button
-                                    type="button"
-                                    className="self-start text-sm font-medium underline"
-                                    style={{ color: 'var(--copper)' }}
-                                    disabled={ocupado}
-                                    onClick={() => setRascunho(servicoIds)}
-                                >
-                                    Alterar {minusculo(t.servico, true)}
-                                </button>
-                            ) : (
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {/* No celular a lista só abre por "Alterar"; no computador fica sempre à esquerda. */}
+                            <div className={`flex-col gap-2 ${rascunho === null ? 'hidden md:flex' : 'flex'}`}>
+                                <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                                    {t.servico.plural}
+                                </p>
+                                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                    Toque para incluir ou tirar. O horário continua o mesmo se o novo tempo couber.
+                                </p>
                                 <EditarServicos
                                     pagina={pagina}
-                                    ids={rascunho}
+                                    ids={rascunho ?? servicoIds}
+                                    alterado={rascunho !== null}
                                     inicio={horario?.inicio ?? null}
                                     horaInicio={horario?.hora ?? null}
                                     ocupado={ocupado}
                                     termoRecurso={minusculo(t.recurso)}
                                     onChange={setRascunho}
                                     onCancelar={() => setRascunho(null)}
-                                    onAplicar={() => void aplicarServicos(rascunho)}
+                                    onAplicar={() => rascunho && void aplicarServicos(rascunho)}
                                 />
-                            )}
-                            <Textarea
-                                id="portal-observacoes"
-                                label="Observações (opcional)"
-                                rows={2}
-                                maxLength={500}
-                                value={observacoes}
-                                onChange={(e) => setObservacoes(e.target.value)}
-                            />
-                            <Button disabled={ocupado || rascunho !== null} onClick={() => void confirmar()}>
-                                {ocupado && rascunho === null ? 'Confirmando…' : `Confirmar ${minusculo(t.agendamento)}`}
-                            </Button>
+                            </div>
+                            <div className="flex min-w-0 flex-col gap-4">
+                                {familia.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                        <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                                            Para quem é?
+                                        </p>
+                                        <Opcao
+                                            selecionado={paraId === null}
+                                            onClick={() => setParaId(null)}
+                                            titulo={sessao?.conta.nome ?? 'Para mim'}
+                                            detalhe="Você"
+                                        />
+                                        {familia.map((p) => (
+                                            <Opcao
+                                                key={p.id}
+                                                selecionado={paraId === p.id}
+                                                onClick={() => setParaId(p.id)}
+                                                titulo={p.nome}
+                                                detalhe={p.parentesco ?? undefined}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                                {resumo}
+                                {rascunho === null && (
+                                    <button
+                                        type="button"
+                                        className="self-start text-sm font-medium underline md:hidden"
+                                        style={{ color: 'var(--copper)' }}
+                                        disabled={ocupado}
+                                        onClick={() => {
+                                            setRascunho(servicoIds);
+                                            topo.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }}
+                                    >
+                                        Alterar {minusculo(t.servico, true)}
+                                    </button>
+                                )}
+                                <Textarea
+                                    id="portal-observacoes"
+                                    label="Observações (opcional)"
+                                    rows={2}
+                                    maxLength={500}
+                                    value={observacoes}
+                                    onChange={(e) => setObservacoes(e.target.value)}
+                                />
+                                <Button disabled={ocupado || rascunho !== null} onClick={() => void confirmar()}>
+                                    {ocupado && rascunho === null ? 'Confirmando…' : `Confirmar ${minusculo(t.agendamento)}`}
+                                </Button>
+                                {rascunho !== null && (
+                                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                        Aplique ou cancele a troca de {minusculo(t.servico, true)} para confirmar.
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </Cartao>
                 )}
