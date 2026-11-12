@@ -39,6 +39,3 @@ self.addEventListener('notificationclick', (event) => {
         })()
     );
 });
-
-/* O Chrome só oferece "Instalar" com um handler de fetch; deixar passar direto para a rede. */
-self.addEventListener('fetch', () => {});
