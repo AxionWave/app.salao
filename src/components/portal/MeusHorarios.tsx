@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Alert, Badge, Button, Input, PhoneInput, Textarea } from '@/components/ui';
+import { Alert, Badge, Button, Input, PhoneInput, Switch, Textarea } from '@/components/ui';
 import { mensagemErroHttp } from '@/exceptions';
 import { formatarTelefoneExibicao, telefoneValido } from '@/lib/telefone';
 import {
@@ -10,6 +10,7 @@ import {
     type HorariosPortal,
     type MeusAgendamentos,
     type PaginaPortal,
+    type PreferenciasCliente,
 } from '@/services/portal.service';
 import {
     AdicionarAgenda,
@@ -132,6 +133,7 @@ export default function MeusHorarios({ endereco, pagina, conta, voltar, sessaoCa
         return (
             <Dados
                 endereco={endereco}
+                empresa={pagina.empresa.nome}
                 conta={conta}
                 voltar={() => irPara({ tipo: 'lista' })}
                 sessaoCaiu={sessaoCaiu}
@@ -482,12 +484,14 @@ function Remarcar({
 
 function Dados({
     endereco,
+    empresa,
     conta,
     voltar,
     sessaoCaiu,
     salvo,
 }: {
     endereco: string;
+    empresa: string;
     conta: ContaCliente;
     voltar: () => void;
     sessaoCaiu: (e: unknown) => boolean;
@@ -540,6 +544,87 @@ function Dados({
                     </Button>
                 </form>
             </Cartao>
+            <AvisosEmail endereco={endereco} empresa={empresa} sessaoCaiu={sessaoCaiu} />
         </div>
+    );
+}
+
+function AvisosEmail({
+    endereco,
+    empresa,
+    sessaoCaiu,
+}: {
+    endereco: string;
+    empresa: string;
+    sessaoCaiu: (e: unknown) => boolean;
+}) {
+    const [pref, setPref] = useState<PreferenciasCliente | null>(null);
+    const [erro, setErro] = useState('');
+    const [ocupado, setOcupado] = useState(false);
+
+    useEffect(() => {
+        let vivo = true;
+        portalService
+            .preferencias(endereco)
+            .then((p) => vivo && setPref(p))
+            .catch((e) => vivo && !sessaoCaiu(e) && setErro(mensagemErroHttp(e)));
+        return () => {
+            vivo = false;
+        };
+    }, [endereco, sessaoCaiu]);
+
+    const mudar = async (receber: boolean) => {
+        setOcupado(true);
+        setErro('');
+        try {
+            setPref(await portalService.salvarPreferencias(endereco, receber));
+        } catch (e) {
+            if (!sessaoCaiu(e)) setErro(mensagemErroHttp(e));
+        } finally {
+            setOcupado(false);
+        }
+    };
+
+    const descricao = !pref
+        ? ''
+        : pref.bloqueio
+          ? pref.bloqueio === 'reclamacao'
+              ? 'Um e-mail daqui foi marcado como spam neste endereço, então nenhum aviso é mandado para ele. Para voltar a receber, fale com a empresa.'
+              : 'Os e-mails para este endereço voltaram (ele não existe ou recusou), então nenhum aviso é mandado para ele. Para voltar a receber, fale com a empresa.'
+          : pref.receberEmails
+            ? `Você recebe de ${empresa} a confirmação, as mudanças e os lembretes dos seus horários.`
+            : `Você não recebe mais os avisos de ${empresa} por e-mail. O código para entrar no site continua chegando.`;
+
+    return (
+        <Cartao>
+            <Titulo>Avisos por e-mail</Titulo>
+            {erro && <Alert titulo="Atenção">{erro}</Alert>}
+            {!pref ? (
+                !erro && (
+                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        Carregando…
+                    </p>
+                )
+            ) : !pref.disponivel ? (
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    Não dá para mudar os avisos por aqui agora.
+                </p>
+            ) : (
+                <div className="flex flex-col gap-3">
+                    <Switch
+                        label={`Receber avisos de ${empresa}`}
+                        descricao={descricao}
+                        checked={pref.receberEmails}
+                        disabled={ocupado || pref.bloqueio !== null}
+                        onChange={(v) => void mudar(v)}
+                    />
+                    {!pref.empresaEnvia && !pref.bloqueio && (
+                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                            No momento, a empresa não está mandando avisos por e-mail.
+                        </p>
+                    )}
+                </div>
+            )}
+        </Cartao>
     );
 }

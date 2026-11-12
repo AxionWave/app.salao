@@ -170,7 +170,7 @@ O cliente entra, se cadastra e marca sozinho.
 ### Área do cliente
 - [x] Próximos agendamentos, com botões de cancelar (com motivo, dentro do prazo da empresa), remarcar (usa a mesma remarcação da equipe) e adicionar à agenda.
 - [x] Histórico e dados pessoais (nome e telefone).
-- [ ] Preferências de notificação pelo portal (hoje o cliente sai dos e-mails pelo link de descadastro).
+- [x] Preferências de notificação pelo portal: em Meus horários → Seus dados, "Avisos por e-mail" liga e desliga os avisos daquela empresa para o e-mail da conta. É a mesma lista do link "não quero mais receber" (fica na AW.Mensageria, por sistema e empresa; `GET`/`PUT .../portal/{endereco}/conta/preferencias` na api.salao, que chama `GET`/`PUT /api/mensageria/preferencias` com o token interno). O código de acesso continua chegando. E-mail que voltou ou foi marcado como spam aparece com o motivo e não se reativa pelo site. O WhatsApp entra na mesma tela quando existir.
 - [x] "Marcar de novo" com o mesmo serviço e profissional.
 
 ### Como ficou (entrega 4: área do cliente)

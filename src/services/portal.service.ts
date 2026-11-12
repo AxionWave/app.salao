@@ -71,6 +71,16 @@ export interface SessaoCliente {
     conta: ContaCliente;
 }
 
+/** Avisos por e-mail desta empresa para o e-mail da conta (a mesma lista do link "não quero mais receber"). */
+export interface PreferenciasCliente {
+    /** False quando a entrega de e-mails não está ligada neste ambiente. */
+    disponivel: boolean;
+    empresaEnvia: boolean;
+    receberEmails: boolean;
+    /** 'devolvido' ou 'reclamacao' (marcado como spam): o site não desfaz. */
+    bloqueio: string | null;
+}
+
 export interface AgendamentoPortal {
     id: number;
     profissional: string;
@@ -165,6 +175,16 @@ export const portalService = {
 
     async salvarConta(endereco: string, nome: string, telefone: string): Promise<ContaCliente> {
         const { data } = await publico.put<ContaCliente>(rota(endereco, '/conta'), { nome, telefone });
+        return data;
+    },
+
+    async preferencias(endereco: string): Promise<PreferenciasCliente> {
+        const { data } = await publico.get<PreferenciasCliente>(rota(endereco, '/conta/preferencias'));
+        return data;
+    },
+
+    async salvarPreferencias(endereco: string, receberEmails: boolean): Promise<PreferenciasCliente> {
+        const { data } = await publico.put<PreferenciasCliente>(rota(endereco, '/conta/preferencias'), { receberEmails });
         return data;
     },
 
