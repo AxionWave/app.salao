@@ -145,17 +145,26 @@ Agenda (API) ──grava na mesma transação──▶ tabela lyra.notificacoes 
 O cliente entra, se cadastra e marca sozinho.
 
 ### Acesso
-- **Endereço por empresa:** `lyra.lumensoft.com.br/{empresa}`, com logo, cores, endereço, serviços e profissionais. É o link que a empresa põe no Instagram e no Google.
-- **Login sem senha:** o cliente informa o telefone ou o e-mail e recebe um código de 6 dígitos por WhatsApp ou e-mail (usa a Etapa 1). Mais simples para o público e sem senha para esquecer.
-- **Conta separada da equipe:** o cliente não é usuário do Core. Criar uma conta de cliente no próprio Lyra, com token próprio e escopo só do portal, ligada à ficha existente pelo telefone ou pelo e-mail. Assim um cliente nunca chega às rotas da equipe.
-- **Uma conta, várias empresas:** a mesma pessoa pode ser cliente de mais de uma empresa da Lumen; cada empresa vê só a sua ficha.
-- **Dependentes:** quem entra pelo telefone ou e-mail da família marca para qualquer membro dela (usa o grupo familiar que já existe).
+- [x] **Endereço por empresa:** `lyra.lumensoft.com.br/{endereco}` (ex.: `/salao-bela`), com logo, apresentação, endereço, telefone, serviços e profissionais. É o link que a empresa põe no Instagram e no Google. Cores próprias por empresa ficaram para depois.
+- [x] **Login sem senha por e-mail:** o cliente informa o e-mail e recebe um código de 6 dígitos. Pelo WhatsApp entra junto com a entrega 4 da Etapa 1.
+- [x] **Conta separada da equipe:** o cliente não é usuário do Core. A conta fica no próprio Lyra (`lyra.contas_cliente`, uma por e-mail), com token próprio e escopo só do portal, e é ligada à ficha pelo e-mail ou pelo telefone. Um cliente nunca chega às rotas da equipe.
+- [x] **Uma conta, várias empresas:** a conta é do e-mail, e em cada empresa ela vira (ou encontra) a ficha daquela empresa; cada empresa vê só a sua.
+- [ ] **Dependentes:** quem entra pelo telefone ou e-mail da família marca para qualquer membro dela (usa o grupo familiar que já existe).
 
 ### Agendamento online
-- [ ] Fluxo: serviço → profissional (ou "qualquer um") → dia → horário livre (usa a rota de horários livres que já existe) → confirmar.
-- [ ] Regras por empresa: antecedência mínima (ex.: 2 h), janela máxima (ex.: 60 dias), limite de agendamentos em aberto por cliente, prazo para cancelar ou remarcar sozinho.
-- [ ] Escolher quais serviços e profissionais aparecem online e se o agendamento online já entra confirmado ou fica "a confirmar" pela recepção.
-- [ ] Proteção: limite de tentativas por IP e por telefone, captcha no cadastro e a trava de R-17.
+- [x] Fluxo: serviço (um ou mais) → profissional ou "sem preferência" (pulado quando só um atende) → dia → horário livre → e-mail e código → nome e telefone (só na primeira vez) → confirmar.
+- [x] Regras por empresa: antecedência mínima, janela máxima, limite de agendamentos em aberto por cliente e de quanto em quanto tempo os horários aparecem. O prazo para cancelar ou remarcar sozinho entra com a área do cliente.
+- [x] Escolher quais serviços e profissionais aparecem online.
+- [ ] Agendamento online já entrar confirmado (hoje entra "agendado", a confirmar pela recepção).
+- [x] Proteção: limites de códigos por e-mail e por IP, tentativas por código e a mesma checagem de conflito da agenda (R-17).
+- [ ] Captcha no pedido de código, se aparecer abuso.
+
+### Como ficou (entregas 1 a 3)
+- **Configuração:** Configurações → **Agendamento online** (módulo Configurações). Liga e desliga a página, escolhe o endereço (sugestão a partir do nome da empresa, conferência ao digitar, endereços reservados como `agenda` e `configuracoes` recusados, único entre empresas), texto de apresentação (até 500 caracteres), antecedência (0 a 7 dias), janela (1 a 365 dias), limite em aberto (1 a 20), passo dos horários (10, 15, 20, 30 ou 60 min) e quais serviços e profissionais ficam de fora. Fica em `lyra.empresa_config.portal` (jsonb) e `portal_endereco` (índice único). Rotas: `GET`/`PUT /api/salao/configuracao/portal` e `GET .../portal/disponivel?endereco=`.
+- **Página pública:** `GET /api/salao/publico/portal/{endereco}` e `.../horarios?data&servicoIds&profissionalId`, sem login (rota `salao-public` do Gateway). Página desligada ou inexistente dá 404. Aparecem só profissionais ativos, com disponibilidade e não ocultos, e serviços ativos, não ocultos e com ao menos um deles. Os horários são os livres da agenda (mesma regra da equipe), dentro da antecedência e da janela.
+- **Código por e-mail:** `POST .../codigo` manda o código pela AW.Mensageria como envio **transacional** (sai mesmo para quem pediu "não quero mais receber" daquela empresa; só e-mail que voltou ou marcou spam bloqueia, e aí a tela pede outro e-mail). O código vale 10 minutos e 5 tentativas; no banco fica só o HMAC (`lyra.codigos_acesso`). Limites: um código a cada 30 s e 5 por hora por e-mail, 30 por hora por IP; acima disso, 429.
+- **Sessão do cliente:** `POST .../entrar` devolve um token próprio (audiência `lyra-portal`, 30 dias), guardado no navegador. `GET`/`PUT .../conta` lê e completa nome e telefone; se a ficha já existe, vem preenchido dela. O token da equipe não serve nas rotas do cliente e vice-versa.
+- **Agendar:** `POST .../agendamentos`. Só aceita horário que está na grade livre naquele momento (o cliente nunca vê o motivo de um bloqueio da equipe; vê "Este horário não está mais livre"). Sem preferência, fica com o profissional livre com menos horários no dia. A ficha é achada pelo e-mail, depois pelo telefone, ou criada ("Cadastro feito pelo agendamento online."); ficha inativa recusa e manda falar com a empresa. Entra como "agendado", com origem cliente: o sino e o push dizem "Novo horário online" e o e-mail de "Horário marcado" sai ao cliente como os outros.
 
 ### Área do cliente
 - [ ] Próximos agendamentos, com botões de cancelar (com motivo, dentro do prazo da empresa), remarcar (usa a mesma rota de remarcação da equipe) e adicionar à agenda.

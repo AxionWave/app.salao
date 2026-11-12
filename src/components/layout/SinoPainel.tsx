@@ -16,7 +16,7 @@ function titulo(a: AvisoPainel, termos: Termos): string {
     const termo = termos.agendamento;
     switch (a.evento) {
         case 'agendamento_criado':
-            return termos.novo('agendamento');
+            return a.origem === 'cliente' ? `${termos.novo('agendamento')} online` : termos.novo('agendamento');
         case 'agendamento_remarcado':
             return `${termo.singular} ${concorda(termo, 'alterado', 'alterada')}`;
         case 'agendamento_cancelado':

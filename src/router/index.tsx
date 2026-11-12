@@ -10,6 +10,7 @@ import ConfiguracoesPage from '@/pages/Configuracoes';
 import PerfilPage from '@/pages/Perfil';
 import PrimeiroAcessoPage from '@/pages/PrimeiroAcesso';
 import ConfirmarPresencaPage from '@/pages/ConfirmarPresenca';
+import PortalPage from '@/pages/Portal';
 import ErroRota from '@/components/ErroRota';
 import ModuleProtectedRoute from './ModuleProtectedRoute';
 import ProtectedRoute from './ProtectedRoute';
@@ -76,6 +77,8 @@ const rotas: RouteObject[] = [
             </ModuleProtectedRoute>
         ),
     },
+    // Página pública da empresa. Os caminhos do app são reservados no back (PortalEmpresa.Reservados).
+    { path: '/:endereco', element: <PortalPage /> },
 ];
 
 const router = Sentry.wrapCreateBrowserRouterV6(createBrowserRouter)(
