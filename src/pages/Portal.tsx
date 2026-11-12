@@ -37,8 +37,81 @@ const ESPERA_REENVIO = 30;
 
 type Passo = 'servicos' | 'profissional' | 'horario' | 'email' | 'codigo' | 'cadastro' | 'confirmar' | 'feito' | 'meus';
 
+const fimDe = (inicio: string, minutos: number) => new Date(new Date(inicio).getTime() + minutos * 60_000).toISOString();
+
+function horaLocal(iso: string, fuso: string): string {
+    const opcoes: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
+    try {
+        return new Intl.DateTimeFormat('pt-BR', { ...opcoes, timeZone: fuso }).format(new Date(iso));
+    } catch {
+        return new Intl.DateTimeFormat('pt-BR', opcoes).format(new Date(iso));
+    }
+}
+
 const minusculo = (t: Termo, plural = false) => (plural ? t.plural : t.singular).toLocaleLowerCase('pt-BR');
 const artigo = (t: Termo) => (t.genero === 'f' ? 'a' : 'o');
+
+/** Troca dos serviços na confirmação: mostra o novo tempo total e até quando o horário fica reservado. */
+function EditarServicos({
+    pagina,
+    ids,
+    inicio,
+    horaInicio,
+    ocupado,
+    termoRecurso,
+    onChange,
+    onCancelar,
+    onAplicar,
+}: {
+    pagina: PaginaPortal;
+    ids: number[];
+    inicio: string | null;
+    horaInicio: string | null;
+    ocupado: boolean;
+    termoRecurso: string;
+    onChange: (ids: number[]) => void;
+    onCancelar: () => void;
+    onAplicar: () => void;
+}) {
+    const escolhidos = pagina.servicos.filter((s) => ids.includes(s.id));
+    const total = escolhidos.reduce((soma, s) => soma + s.duracaoMinutos, 0);
+    const preco = escolhidos.reduce((soma, s) => soma + s.preco, 0);
+    const alguemFaz = pagina.profissionais.some((p) => escolhidos.every((s) => s.profissionalIds.includes(p.id)));
+    return (
+        <div className="flex flex-col gap-2 rounded-lyra border p-3" style={{ borderColor: 'var(--line)' }}>
+            {pagina.servicos.map((s) => (
+                <Opcao
+                    key={s.id}
+                    selecionado={ids.includes(s.id)}
+                    onClick={() => onChange(ids.includes(s.id) ? ids.filter((x) => x !== s.id) : [...ids, s.id])}
+                    titulo={s.nome}
+                    detalhe={formatarDuracaoMinutos(s.duracaoMinutos)}
+                    lateral={s.preco > 0 ? brl.format(s.preco) : undefined}
+                />
+            ))}
+            {ids.length > 0 && (
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    Total: {formatarDuracaoMinutos(total)}
+                    {preco > 0 ? ` · ${brl.format(preco)}` : ''}
+                    {inicio && horaInicio
+                        ? ` · ficaria reservado das ${horaInicio} às ${horaLocal(fimDe(inicio, total), pagina.fusoHorario)}`
+                        : ''}
+                </p>
+            )}
+            {ids.length > 0 && !alguemFaz && (
+                <Alert variant="warn">Nenhum {termoRecurso} faz todos estes juntos. Tire algum.</Alert>
+            )}
+            <div className="flex gap-2">
+                <Button size="sm" disabled={ocupado || ids.length === 0 || !alguemFaz} onClick={onAplicar}>
+                    {ocupado ? 'Conferindo horário…' : 'Aplicar'}
+                </Button>
+                <Button size="sm" variant="ghost" disabled={ocupado} onClick={onCancelar}>
+                    Cancelar
+                </Button>
+            </div>
+        </div>
+    );
+}
 
 /** Página pública da empresa (lyra.lumensoft.com.br/{endereco}): o cliente escolhe e marca o horário. */
 export default function PortalPage() {
@@ -65,6 +138,8 @@ export default function PortalPage() {
     const [telefone, setTelefone] = useState('');
     const [observacoes, setObservacoes] = useState('');
     const [feito, setFeito] = useState<AgendamentoPortal | null>(null);
+    /** Serviços sendo trocados na confirmação; null quando não está editando. */
+    const [rascunho, setRascunho] = useState<number[] | null>(null);
     /** Para onde o login leva: terminar o agendamento ou abrir "Meus horários". */
     const [destino, setDestino] = useState<'agendar' | 'meus'>('agendar');
     const topo = useRef<HTMLDivElement>(null);
@@ -311,6 +386,40 @@ export default function PortalPage() {
         }
     };
 
+    /**
+     * Troca os serviços sem perder o horário, se o novo tempo total ainda couber nele (com o mesmo
+     * profissional, ou com quem fizer todos). Se não couber, volta para a escolha do horário.
+     */
+    const aplicarServicos = async (ids: number[]) => {
+        if (!pagina || !horario) return;
+        const novos = pagina.servicos.filter((s) => ids.includes(s.id));
+        const aptosNovos = pagina.profissionais.filter((p) => novos.every((s) => s.profissionalIds.includes(p.id)));
+        const pid = profissionalId !== null && aptosNovos.some((p) => p.id === profissionalId) ? profissionalId : null;
+        setOcupado(true);
+        setErro('');
+        try {
+            const r = await portalService.horarios(endereco, dia, ids, pid);
+            const cabe = juntarHorarios(r.profissionais, pid).some((h) => h.inicio === horario.inicio);
+            setServicoIds(ids);
+            setProfissionalId(pid);
+            setHorarios(r);
+            setCarregados(`${dia}|${ids.join(',')}|${pid ?? ''}`);
+            setRascunho(null);
+            if (!cabe) {
+                const total = novos.reduce((soma, s) => soma + s.duracaoMinutos, 0);
+                setHorario(null);
+                irPara('horario');
+                setErro(
+                    `Com ${formatarDuracaoMinutos(total)} no total, o horário das ${horario.hora} não cabe mais na agenda. Escolha outro.`,
+                );
+            }
+        } catch (e) {
+            setErro(mensagemErroHttp(e));
+        } finally {
+            setOcupado(false);
+        }
+    };
+
     const recomecar = () => {
         setServicoIds([]);
         setProfissionalId(null);
@@ -357,7 +466,7 @@ export default function PortalPage() {
 
     const resumo = (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <dt style={{ color: 'var(--muted-foreground)' }}>{t.servico.singular}</dt>
+            <dt style={{ color: 'var(--muted-foreground)' }}>{escolhidos.length > 1 ? t.servico.plural : t.servico.singular}</dt>
             <dd style={{ color: 'var(--ink)' }}>{escolhidos.map((s) => s.nome).join(', ')}</dd>
             <dt style={{ color: 'var(--muted-foreground)' }}>Com</dt>
             <dd style={{ color: 'var(--ink)' }}>{profissional?.nome ?? (aptos.length === 1 ? aptos[0].nome : 'Quem estiver livre')}</dd>
@@ -370,7 +479,10 @@ export default function PortalPage() {
                 </>
             )}
             <dt style={{ color: 'var(--muted-foreground)' }}>Duração</dt>
-            <dd style={{ color: 'var(--ink)' }}>{formatarDuracaoMinutos(duracao)}</dd>
+            <dd style={{ color: 'var(--ink)' }}>
+                {formatarDuracaoMinutos(duracao)}
+                {horario && ` (reservado das ${horario.hora} às ${horaLocal(fimDe(horario.inicio, duracao), pagina.fusoHorario)})`}
+            </dd>
             {preco > 0 && (
                 <>
                     <dt style={{ color: 'var(--muted-foreground)' }}>Valor</dt>
@@ -476,7 +588,9 @@ export default function PortalPage() {
                                     />
                                 ))}
                                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                                    Pode escolher mais de um.
+                                    {escolhidos.length > 1
+                                        ? `${escolhidos.length} escolhidos, feitos em sequência: ${formatarDuracaoMinutos(duracao)} no total${preco > 0 ? ` · ${brl.format(preco)}` : ''}.`
+                                        : 'Pode escolher mais de um.'}
                                 </p>
                                 {servicoIds.length > 0 && aptos.length === 0 && (
                                     <Alert variant="warn">
@@ -533,6 +647,18 @@ export default function PortalPage() {
                 {passo === 'horario' && (
                     <Cartao>
                         <Titulo voltar={() => irPara(aptos.length > 1 ? 'profissional' : 'servicos')}>Dia e horário</Titulo>
+                        <p className="-mt-2 mb-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                            {escolhidos.map((s) => s.nome).join(', ')} · {formatarDuracaoMinutos(duracao)}
+                            {escolhidos.length > 1 ? ' no total' : ''}. Só aparecem horários com tempo livre para tudo.{' '}
+                            <button
+                                type="button"
+                                className="font-medium underline"
+                                style={{ color: 'var(--copper)' }}
+                                onClick={() => irPara('servicos')}
+                            >
+                                Alterar
+                            </button>
+                        </p>
                         <SeletorDia
                             dias={dias}
                             dia={dia}
@@ -675,6 +801,29 @@ export default function PortalPage() {
                         <Titulo voltar={() => irPara('horario')}>Confira e confirme</Titulo>
                         <div className="flex flex-col gap-4">
                             {resumo}
+                            {rascunho === null ? (
+                                <button
+                                    type="button"
+                                    className="self-start text-sm font-medium underline"
+                                    style={{ color: 'var(--copper)' }}
+                                    disabled={ocupado}
+                                    onClick={() => setRascunho(servicoIds)}
+                                >
+                                    Alterar {minusculo(t.servico, true)}
+                                </button>
+                            ) : (
+                                <EditarServicos
+                                    pagina={pagina}
+                                    ids={rascunho}
+                                    inicio={horario?.inicio ?? null}
+                                    horaInicio={horario?.hora ?? null}
+                                    ocupado={ocupado}
+                                    termoRecurso={minusculo(t.recurso)}
+                                    onChange={setRascunho}
+                                    onCancelar={() => setRascunho(null)}
+                                    onAplicar={() => void aplicarServicos(rascunho)}
+                                />
+                            )}
                             <Textarea
                                 id="portal-observacoes"
                                 label="Observações (opcional)"
@@ -683,8 +832,8 @@ export default function PortalPage() {
                                 value={observacoes}
                                 onChange={(e) => setObservacoes(e.target.value)}
                             />
-                            <Button disabled={ocupado} onClick={() => void confirmar()}>
-                                {ocupado ? 'Confirmando…' : `Confirmar ${minusculo(t.agendamento)}`}
+                            <Button disabled={ocupado || rascunho !== null} onClick={() => void confirmar()}>
+                                {ocupado && rascunho === null ? 'Confirmando…' : `Confirmar ${minusculo(t.agendamento)}`}
                             </Button>
                         </div>
                     </Cartao>

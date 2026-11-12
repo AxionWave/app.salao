@@ -153,6 +153,7 @@ O cliente entra, se cadastra e marca sozinho.
 
 ### Agendamento online
 - [x] Fluxo: serviço (um ou mais) → profissional ou "sem preferência" (pulado quando só um atende) → dia → horário livre → e-mail e código → nome e telefone (só na primeira vez) → confirmar.
+- [x] Vários serviços são feitos em sequência e reservam o tempo somado (mais o preparo de cada um): só aparecem horários em que tudo cabe, e o resumo mostra "reservado das 10:00 às 13:30". Na confirmação, "Alterar serviços" troca a lista sem sair da tela; se o novo total não couber no horário escolhido (ou o profissional não fizer algum), passa para quem faz todos ou volta para a escolha do horário com o aviso.
 - [x] Regras por empresa: antecedência mínima, janela máxima, limite de agendamentos em aberto por cliente, de quanto em quanto tempo os horários aparecem e até quando o cliente cancela ou remarca sozinho.
 - [x] Escolher quais serviços e profissionais aparecem online.
 - [ ] Agendamento online já entrar confirmado (hoje entra "agendado", a confirmar pela recepção).
