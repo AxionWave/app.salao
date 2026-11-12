@@ -64,6 +64,7 @@ function Campo({ label, children }: { label: string; children: ReactNode }) {
 /** Configuração da página pública onde o cliente marca sozinho. */
 export default function AgendamentoOnline() {
     const t = useTermos();
+    const cliente = t.cliente.singular.toLocaleLowerCase('pt-BR');
     const [dados, setDados] = useState<PortalConfigResposta | null>(null);
     const [form, setForm] = useState<PortalConfig | null>(null);
     const [carregando, setCarregando] = useState(true);
@@ -340,6 +341,18 @@ export default function AgendamentoOnline() {
                                 </select>
                             </Campo>
                         </div>
+
+                        <Switch
+                            label="Já entrar confirmado"
+                            descricao={
+                                form.confirmarAutomatico
+                                    ? `O que o ${cliente} marca ou remarca pelo site entra como confirmado, e o e-mail não pede para confirmar presença.`
+                                    : `O que o ${cliente} marca pelo site entra como agendado, e a equipe confirma depois (ou o próprio ${cliente}, pelo link do e-mail).`
+                            }
+                            checked={form.confirmarAutomatico}
+                            disabled={salvando}
+                            onChange={(v) => mudar({ confirmarAutomatico: v })}
+                        />
 
                         {dados.servicos.length > 0 && (
                             <div>

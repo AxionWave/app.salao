@@ -156,7 +156,7 @@ O cliente entra, se cadastra e marca sozinho.
 - [x] Vários serviços são feitos em sequência e reservam o tempo somado (mais o preparo de cada um): só aparecem horários em que tudo cabe, e o resumo mostra "reservado das 10:00 às 13:30". Na confirmação, "Alterar serviços" troca a lista sem sair da tela; se o novo total não couber no horário escolhido (ou o profissional não fizer algum), passa para quem faz todos ou volta para a escolha do horário com o aviso.
 - [x] Regras por empresa: antecedência mínima, janela máxima, limite de agendamentos em aberto por cliente, de quanto em quanto tempo os horários aparecem e até quando o cliente cancela ou remarca sozinho.
 - [x] Escolher quais serviços e profissionais aparecem online.
-- [ ] Agendamento online já entrar confirmado (hoje entra "agendado", a confirmar pela recepção).
+- [x] Agendamento online já entrar confirmado: opção "Já entrar confirmado" em Configurações → Agendamento online (desligada por padrão). Ligada, o que o cliente marca ou remarca pelo site entra como "confirmado", a tela diz "Horário marcado e confirmado!" e o e-mail sai sem o botão de confirmar presença. O que a equipe marca continua "agendado".
 - [x] Proteção: limites de códigos por e-mail e por IP, tentativas por código e a mesma checagem de conflito da agenda (R-17).
 - [ ] Captcha no pedido de código, se aparecer abuso.
 

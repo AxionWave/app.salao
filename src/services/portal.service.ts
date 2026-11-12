@@ -16,6 +16,8 @@ export interface PortalConfig {
     profissionaisOcultos: number[];
     /** Até quantas horas antes o cliente cancela ou remarca pelo site; null = só falando com a empresa. */
     prazoAlteracaoHoras: number | null;
+    /** O que o cliente marca ou remarca pelo site já entra confirmado. */
+    confirmarAutomatico: boolean;
 }
 
 export interface ItemPortal {

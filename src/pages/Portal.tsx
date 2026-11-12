@@ -844,14 +844,16 @@ export default function PortalPage() {
                         <div className="flex flex-col gap-4">
                             <div>
                                 <p className="text-sm font-semibold" style={{ color: 'var(--ok)' }}>
-                                    Horário marcado!
+                                    {feito.status === 'confirmado' ? 'Horário marcado e confirmado!' : 'Horário marcado!'}
                                 </p>
                                 <h2 className="mt-1 font-display text-xl font-semibold first-letter:uppercase" style={{ color: 'var(--ink)' }}>
                                     {quando(feito.inicio, pagina.fusoHorario)}
                                 </h2>
                             </div>
                             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                                <dt style={{ color: 'var(--muted-foreground)' }}>{t.servico.singular}</dt>
+                                <dt style={{ color: 'var(--muted-foreground)' }}>
+                                    {feito.servicos.length > 1 ? t.servico.plural : t.servico.singular}
+                                </dt>
                                 <dd style={{ color: 'var(--ink)' }}>{feito.servicos.join(', ')}</dd>
                                 <dt style={{ color: 'var(--muted-foreground)' }}>Com</dt>
                                 <dd style={{ color: 'var(--ink)' }}>{feito.profissional}</dd>
