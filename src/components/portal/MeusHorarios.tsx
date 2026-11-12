@@ -197,6 +197,11 @@ export default function MeusHorarios({ endereco, pagina, conta, voltar, sessaoCa
                                             <p className="font-semibold first-letter:uppercase" style={{ color: 'var(--ink)' }}>
                                                 {quando(a.inicio, fuso)}
                                             </p>
+                                            {a.para && (
+                                                <p className="mt-0.5 text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                                                    Para {a.para}
+                                                </p>
+                                            )}
                                             <p className="mt-0.5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
                                                 {a.servicos.map((s) => s.nome).join(', ')} · com {a.profissional}
                                                 {a.preco > 0 ? ` · ${brl.format(a.preco)}` : ''}
@@ -255,6 +260,7 @@ export default function MeusHorarios({ endereco, pagina, conta, voltar, sessaoCa
                                             </Badge>
                                         </p>
                                         <p className="mt-0.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                                            {a.para ? `Para ${a.para} · ` : ''}
                                             {a.servicos.map((s) => s.nome).join(', ')} · {a.profissional}
                                             {a.status === 'cancelado' && a.motivoCancelamento ? ` · ${a.motivoCancelamento}` : ''}
                                         </p>
@@ -315,6 +321,7 @@ function Cancelar({
                             {quando(item.inicio, fuso)}
                         </p>
                         <p style={{ color: 'var(--muted-foreground)' }}>
+                            {item.para ? `Para ${item.para} · ` : ''}
                             {item.servicos.map((s) => s.nome).join(', ')} · com {item.profissional}
                         </p>
                     </div>
@@ -436,6 +443,7 @@ function Remarcar({
                 <p className="mb-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
                     Agora: {quando(item.inicio, fuso)}, com {item.profissional}.
                     <br />
+                    {item.para ? `Para ${item.para} · ` : ''}
                     {item.servicos.map((s) => s.nome).join(', ')}
                 </p>
 

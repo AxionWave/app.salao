@@ -89,6 +89,15 @@ export interface AgendamentoPortal {
     fim: string;
     preco: number;
     status: string;
+    /** Nome de quem vai, quando é alguém da família; null quando é o próprio cliente. */
+    para: string | null;
+}
+
+/** Alguém da família do cliente, montada pela empresa no cadastro. */
+export interface PessoaFamilia {
+    id: number;
+    nome: string;
+    parentesco: string | null;
 }
 
 export interface AgendamentoCliente {
@@ -106,6 +115,8 @@ export interface AgendamentoCliente {
     podeAlterar: boolean;
     /** Até quando dá para cancelar ou remarcar pelo site; null quando a empresa não deixa. */
     alterarAte: string | null;
+    /** Nome de quem vai, quando é alguém da família; null quando é o próprio cliente. */
+    para: string | null;
 }
 
 export interface MeusAgendamentos {
@@ -188,9 +199,22 @@ export const portalService = {
         return data;
     },
 
+    /** Vazio na maioria das contas: só tem família quem a empresa pôs numa, e com o e-mail da conta na ficha. */
+    async familia(endereco: string): Promise<PessoaFamilia[]> {
+        const { data } = await publico.get<PessoaFamilia[]>(rota(endereco, '/conta/familia'));
+        return data;
+    },
+
     async agendar(
         endereco: string,
-        body: { servicoIds: number[]; profissionalId: number | null; inicio: string; observacoes: string | null },
+        body: {
+            servicoIds: number[];
+            profissionalId: number | null;
+            inicio: string;
+            observacoes: string | null;
+            /** Alguém da família; null = o próprio cliente. */
+            clienteId: number | null;
+        },
     ): Promise<AgendamentoPortal> {
         const { data } = await publico.post<AgendamentoPortal>(rota(endereco, '/agendamentos'), body);
         return data;

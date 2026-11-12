@@ -29,6 +29,7 @@ import {
     type AgendamentoPortal,
     type HorariosPortal,
     type PaginaPortal,
+    type PessoaFamilia,
     type SessaoCliente,
 } from '@/services/portal.service';
 
@@ -138,6 +139,10 @@ export default function PortalPage() {
     const [telefone, setTelefone] = useState('');
     const [observacoes, setObservacoes] = useState('');
     const [feito, setFeito] = useState<AgendamentoPortal | null>(null);
+    /** Quem da família a conta pode agendar (a empresa monta); vazio na maioria das contas. */
+    const [familia, setFamilia] = useState<PessoaFamilia[]>([]);
+    /** Para quem é o horário: alguém da família, ou null para o próprio cliente. */
+    const [paraId, setParaId] = useState<number | null>(null);
     /** Serviços sendo trocados na confirmação; null quando não está editando. */
     const [rascunho, setRascunho] = useState<number[] | null>(null);
     /** Para onde o login leva: terminar o agendamento ou abrir "Meus horários". */
@@ -190,6 +195,24 @@ export default function PortalPage() {
             vivo = false;
         };
     }, [endereco]);
+
+    useEffect(() => {
+        if (passo !== 'confirmar' || !sessao) return;
+        let vivo = true;
+        portalService
+            .familia(endereco)
+            .then((f) => {
+                if (!vivo) return;
+                setFamilia(f);
+                setParaId((id) => (id !== null && f.some((p) => p.id === id) ? id : null));
+            })
+            .catch(() => {
+                if (vivo) setFamilia([]);
+            });
+        return () => {
+            vivo = false;
+        };
+    }, [passo, endereco, sessao]);
 
     useEffect(() => {
         if (reenvioEm <= 0) return;
@@ -252,6 +275,8 @@ export default function PortalPage() {
     const sair = () => {
         salvarSessao(null);
         setSessao(null);
+        setFamilia([]);
+        setParaId(null);
         if (passo === 'meus') setPasso('servicos');
     };
 
@@ -370,6 +395,7 @@ export default function PortalPage() {
                 profissionalId,
                 inicio: horario.inicio,
                 observacoes: observacoes.trim() || null,
+                clienteId: paraId,
             });
             setFeito(r);
             irPara('feito');
@@ -426,6 +452,7 @@ export default function PortalPage() {
         setHorario(null);
         setObservacoes('');
         setFeito(null);
+        setParaId(null);
         if (pagina) setDia(hojeNoFuso(pagina.fusoHorario));
         irPara('servicos');
     };
@@ -800,6 +827,28 @@ export default function PortalPage() {
                     <Cartao>
                         <Titulo voltar={() => irPara('horario')}>Confira e confirme</Titulo>
                         <div className="flex flex-col gap-4">
+                            {familia.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                                        Para quem é?
+                                    </p>
+                                    <Opcao
+                                        selecionado={paraId === null}
+                                        onClick={() => setParaId(null)}
+                                        titulo={sessao?.conta.nome ?? 'Para mim'}
+                                        detalhe="Você"
+                                    />
+                                    {familia.map((p) => (
+                                        <Opcao
+                                            key={p.id}
+                                            selecionado={paraId === p.id}
+                                            onClick={() => setParaId(p.id)}
+                                            titulo={p.nome}
+                                            detalhe={p.parentesco ?? undefined}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                             {resumo}
                             {rascunho === null ? (
                                 <button
@@ -851,6 +900,12 @@ export default function PortalPage() {
                                 </h2>
                             </div>
                             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                                {feito.para && (
+                                    <>
+                                        <dt style={{ color: 'var(--muted-foreground)' }}>Para</dt>
+                                        <dd style={{ color: 'var(--ink)' }}>{feito.para}</dd>
+                                    </>
+                                )}
                                 <dt style={{ color: 'var(--muted-foreground)' }}>
                                     {feito.servicos.length > 1 ? t.servico.plural : t.servico.singular}
                                 </dt>
