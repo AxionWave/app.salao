@@ -13,6 +13,22 @@ function applyGatewayHeaders(config: InternalAxiosRequestConfig): void {
 
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
+/** Limpa a sessão e abre o login com o aviso de sessão expirada. */
+export function irParaLoginSessaoExpirada(): void {
+    clearAuthSessionStorage();
+    const login = `${import.meta.env.BASE_URL}login`;
+    if (window.location.pathname !== login) {
+        window.location.href = `${login}?sessao=expirada`;
+    }
+}
+
+/** O refresh foi recusado (ou não existe): a sessão acabou. Falha de rede não conta. */
+function sessaoAcabou(err: unknown): boolean {
+    if (err instanceof Error && err.message === 'missing_refresh_token') return true;
+    const status = (err as AxiosError).response?.status;
+    return status === 400 || status === 401 || status === 403;
+}
+
 let refreshInFlight: Promise<string> | null = null;
 
 export async function refreshAccessToken(): Promise<string> {
@@ -66,8 +82,7 @@ function attachAuth(client: AxiosInstance): AxiosInstance {
                 applyGatewayHeaders(original);
                 return client(original);
             } catch (refreshErr) {
-                clearAuthSessionStorage();
-                window.location.href = `${import.meta.env.BASE_URL}login`;
+                irParaLoginSessaoExpirada();
                 return Promise.reject(refreshErr);
             }
         }
@@ -92,7 +107,10 @@ export const httpClient: AxiosInstance = attachAuth(
     })
 );
 
-/** API Lyra (localhost:8092 quando VITE_LYRA_AMBIENTE=local). 401 daqui não desloga. */
+/**
+ * API Lyra (localhost:8092 quando VITE_LYRA_AMBIENTE=local). Só desloga quando o refresh é recusado:
+ * um 401 que persiste com token renovado (ex.: API local com outro JWT_SECRET) não derruba a sessão.
+ */
 function attachLyraAuth(client: AxiosInstance): AxiosInstance {
     client.interceptors.request.use((config) => {
         const token = localStorage.getItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
@@ -118,7 +136,8 @@ function attachLyraAuth(client: AxiosInstance): AxiosInstance {
                 }
                 (original.headers as AxiosHeaders).set('Authorization', `Bearer ${accessToken}`);
                 return client(original);
-            } catch {
+            } catch (refreshErr) {
+                if (sessaoAcabou(refreshErr)) irParaLoginSessaoExpirada();
                 return Promise.reject(error);
             }
         }

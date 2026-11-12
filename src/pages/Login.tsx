@@ -22,7 +22,11 @@ export default function LoginPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [alerta, setAlerta] = useState<AlertaLogin | null>(null);
+    const [alerta, setAlerta] = useState<AlertaLogin | null>(() =>
+        new URLSearchParams(window.location.search).get('sessao') === 'expirada'
+            ? { titulo: 'Sessão expirada', texto: 'Por segurança, entre novamente para continuar.' }
+            : null
+    );
     const [loading, setLoading] = useState(false);
 
     const recusarSemAcesso = useCallback(() => {
