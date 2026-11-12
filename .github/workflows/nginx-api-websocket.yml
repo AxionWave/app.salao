@@ -45,5 +45,27 @@ jobs:
               mostrar "$SITE"
               exit 0
             fi
-            echo "Ação desconhecida: $ACAO"
-            exit 1
+            if [ "$ACAO" != "aplicar" ]; then echo "Ação desconhecida: $ACAO"; exit 1; fi
+            if grep -q 'proxy_set_header Upgrade' "$SITE"; then
+              echo "WebSocket já ligado; nada a fazer."
+              exit 0
+            fi
+            # A cópia fica fora de sites-enabled: lá dentro o nginx carregaria as duas.
+            mkdir -p /root/nginx-backups
+            COPIA=/root/nginx-backups/$(basename "$SITE").$(date +%Y%m%d%H%M%S)
+            cp -a "$SITE" "$COPIA"
+            echo "Cópia: $COPIA"
+            # O map só manda "upgrade" quando o navegador pede WebSocket; os outros pedidos seguem como antes.
+            sed -i '1i map $http_upgrade $lyra_connection_upgrade {\n    default upgrade;\n    "" "";\n}\n' "$SITE"
+            sed -i '/proxy_set_header X-Forwarded-Proto \$scheme;/a\        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection $lyra_connection_upgrade;' "$SITE"
+            if ! nginx -t; then
+              cp -a "$COPIA" "$SITE"
+              echo "nginx -t falhou; arquivo original restaurado, nada foi recarregado."
+              exit 1
+            fi
+            systemctl reload nginx
+            mostrar "$SITE"
+            sleep 2
+            code=$(curl -s -o /dev/null -w '%{http_code}' --resolve api.lumensoft.com.br:443:127.0.0.1 https://api.lumensoft.com.br/api/salao/publico/portal/teste-nginx)
+            echo "GET /api/salao/publico/portal/teste-nginx -> $code (esperado 404)"
+            [ "$code" = "404" ]
