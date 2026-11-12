@@ -40,6 +40,16 @@ type Passo = 'servicos' | 'profissional' | 'horario' | 'email' | 'codigo' | 'cad
 
 const fimDe = (inicio: string, minutos: number) => new Date(new Date(inicio).getTime() + minutos * 60_000).toISOString();
 
+/** "quinta-feira, 12 de novembro", no fuso da empresa. */
+function diaLocal(iso: string, fuso: string): string {
+    const opcoes: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+    try {
+        return new Intl.DateTimeFormat('pt-BR', { ...opcoes, timeZone: fuso }).format(new Date(iso));
+    } catch {
+        return new Intl.DateTimeFormat('pt-BR', opcoes).format(new Date(iso));
+    }
+}
+
 function horaLocal(iso: string, fuso: string): string {
     const opcoes: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
     try {
@@ -498,46 +508,78 @@ export default function PortalPage() {
         );
     }
 
+    const nomeProfissional = profissional?.nome ?? (aptos.length === 1 ? aptos[0].nome : null);
+    const rotulo = { color: 'var(--muted-foreground)' };
     const resumo = (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <dt style={{ color: 'var(--muted-foreground)' }}>{escolhidos.length > 1 ? t.servico.plural : t.servico.singular}</dt>
-            <dd style={{ color: 'var(--ink)' }}>
-                <ul className="flex flex-col gap-1">
+        <div className="flex flex-col gap-4">
+            {horario && (
+                <div
+                    className="rounded-lyra border p-4"
+                    style={{ borderColor: 'var(--copper)', background: 'color-mix(in oklab, var(--copper) 8%, var(--panel))' }}
+                >
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--copper)' }}>
+                        Quando
+                    </p>
+                    <p className="mt-1 font-display text-lg font-semibold first-letter:uppercase" style={{ color: 'var(--ink)' }}>
+                        {diaLocal(horario.inicio, pagina.fusoHorario)}
+                    </p>
+                    <p className="text-base tabular-nums" style={{ color: 'var(--ink)' }}>
+                        {horario.hora} às {horaLocal(fimDe(horario.inicio, duracao), pagina.fusoHorario)}
+                        <span style={rotulo}> · {formatarDuracaoMinutos(duracao)}</span>
+                    </p>
+                    <p className="mt-2 text-sm" style={rotulo}>
+                        {nomeProfissional ? (
+                            <>
+                                Com <span style={{ color: 'var(--ink)' }}>{nomeProfissional}</span>
+                            </>
+                        ) : (
+                            'Com quem estiver livre no horário'
+                        )}
+                    </p>
+                </div>
+            )}
+            <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={rotulo}>
+                    {escolhidos.length > 1 ? t.servico.plural : t.servico.singular}
+                </p>
+                <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--line)' }}>
                     {escolhidos.map((s) => (
-                        <li key={s.id} className="flex items-baseline justify-between gap-3">
+                        <li
+                            key={s.id}
+                            className="flex items-center justify-between gap-3 py-2 text-sm"
+                            style={{ borderColor: 'var(--line)' }}
+                        >
                             <span className="min-w-0">
-                                {s.nome}
-                                <span style={{ color: 'var(--muted-foreground)' }}> · {formatarDuracaoMinutos(s.duracaoMinutos)}</span>
+                                <span className="block" style={{ color: 'var(--ink)' }}>
+                                    {s.nome}
+                                </span>
+                                <span className="block text-xs" style={rotulo}>
+                                    {formatarDuracaoMinutos(s.duracaoMinutos)}
+                                </span>
                             </span>
-                            {s.preco > 0 && escolhidos.length > 1 && (
-                                <span className="shrink-0 tabular-nums">{brl.format(s.preco)}</span>
+                            {s.preco > 0 && (
+                                <span className="shrink-0 tabular-nums" style={{ color: 'var(--ink)' }}>
+                                    {brl.format(s.preco)}
+                                </span>
                             )}
                         </li>
                     ))}
                 </ul>
-            </dd>
-            <dt style={{ color: 'var(--muted-foreground)' }}>Com</dt>
-            <dd style={{ color: 'var(--ink)' }}>{profissional?.nome ?? (aptos.length === 1 ? aptos[0].nome : 'Quem estiver livre')}</dd>
-            {horario && (
-                <>
-                    <dt style={{ color: 'var(--muted-foreground)' }}>Quando</dt>
-                    <dd className="first-letter:uppercase" style={{ color: 'var(--ink)' }}>
-                        {quando(horario.inicio, pagina.fusoHorario)}
-                    </dd>
-                </>
-            )}
-            <dt style={{ color: 'var(--muted-foreground)' }}>Duração</dt>
-            <dd style={{ color: 'var(--ink)' }}>
-                {formatarDuracaoMinutos(duracao)}
-                {horario && ` (reservado das ${horario.hora} às ${horaLocal(fimDe(horario.inicio, duracao), pagina.fusoHorario)})`}
-            </dd>
-            {preco > 0 && (
-                <>
-                    <dt style={{ color: 'var(--muted-foreground)' }}>{escolhidos.length > 1 ? 'Total' : 'Valor'}</dt>
-                    <dd style={{ color: 'var(--ink)' }}>{brl.format(preco)}</dd>
-                </>
-            )}
-        </dl>
+                {preco > 0 && (
+                    <div
+                        className="mt-1 flex items-baseline justify-between gap-3 border-t pt-3"
+                        style={{ borderColor: 'var(--line)' }}
+                    >
+                        <span className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+                            Total
+                        </span>
+                        <span className="font-display text-lg font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
+                            {brl.format(preco)}
+                        </span>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 
     return (
@@ -873,6 +915,21 @@ export default function PortalPage() {
                                 />
                             </div>
                             <div className="flex min-w-0 flex-col gap-4">
+                                {resumo}
+                                {rascunho === null && (
+                                    <button
+                                        type="button"
+                                        className="self-start text-sm font-medium underline md:hidden"
+                                        style={{ color: 'var(--copper)' }}
+                                        disabled={ocupado}
+                                        onClick={() => {
+                                            setRascunho(servicoIds);
+                                            topo.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }}
+                                    >
+                                        Alterar {minusculo(t.servico, true)}
+                                    </button>
+                                )}
                                 {familia.length > 0 && (
                                     <div className="flex flex-col gap-2">
                                         <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
@@ -894,21 +951,6 @@ export default function PortalPage() {
                                             />
                                         ))}
                                     </div>
-                                )}
-                                {resumo}
-                                {rascunho === null && (
-                                    <button
-                                        type="button"
-                                        className="self-start text-sm font-medium underline md:hidden"
-                                        style={{ color: 'var(--copper)' }}
-                                        disabled={ocupado}
-                                        onClick={() => {
-                                            setRascunho(servicoIds);
-                                            topo.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                        }}
-                                    >
-                                        Alterar {minusculo(t.servico, true)}
-                                    </button>
                                 )}
                                 <Textarea
                                     id="portal-observacoes"
