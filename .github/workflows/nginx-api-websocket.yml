@@ -1,0 +1,49 @@
+name: nginx da API - WebSocket
+
+# Manual. "mostrar" só lê o site da API; "aplicar" liga o WebSocket no proxy (com cópia, nginx -t e volta automática).
+on:
+  workflow_dispatch:
+    inputs:
+      acao:
+        description: mostrar ou aplicar
+        required: true
+        default: mostrar
+        type: choice
+        options:
+          - mostrar
+          - aplicar
+
+concurrency:
+  group: nginx-api
+  cancel-in-progress: false
+
+jobs:
+  nginx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: nginx na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ACAO: ${{ inputs.acao }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          port: ${{ secrets.VPS_PORT }}
+          envs: ACAO
+          script: |
+            set -e
+            SITE=$(grep -lE "server_name[^;]*[[:space:]]api\.lumensoft\.com\.br[[:space:];]" /etc/nginx/sites-enabled/* 2>/dev/null | head -1 || true)
+            if [ -z "$SITE" ]; then echo "Site da API não encontrado em /etc/nginx/sites-enabled"; exit 1; fi
+            echo "Arquivo: $SITE"
+            mostrar() {
+              sed -E 's/((secret|token|senha|password|passwd|key|auth)[^[:space:]]*[[:space:]]+).*/\1<oculto>;/I' "$1" | grep -nvE '^[[:space:]]*(#|$)'
+            }
+            if [ "$ACAO" = "mostrar" ]; then
+              mostrar "$SITE"
+              exit 0
+            fi
+            echo "Ação desconhecida: $ACAO"
+            exit 1
